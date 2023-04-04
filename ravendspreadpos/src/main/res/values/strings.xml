@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="defaultloading">Please wait…</string>
+    <string name="data">data</string>
+
+    <!--POS CARD UPDATES MESSAGES -->
+    <string name="insert_card">Please Insert your card</string>
+    <string name="retry_card">Oops!! , Kindly retry the transaction.</string>
+    <string name="wait_card">Please wait…</string>
+    <string name="input_pin_card">Please Input Pin</string>
+    <string name="title_activity_pos">PosActivity</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="btnContinue">Continue</string>
+
+</resources>
