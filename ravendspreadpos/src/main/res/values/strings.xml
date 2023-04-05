@@ -2,7 +2,20 @@
 <resources>
     <string name="defaultloading">Please wait…</string>
     <string name="data">data</string>
+    <string name="audio">Audio</string>
+    <string name="bdk">0123456789ABCDEFFEDCBA9876543210</string>
 
+    <string name="serial_port">Serial port</string>
+    <string name="normal_bluetooth">Normal Blutooth</string>
+    <string name="other_blu">BLE Blutooth</string>
+    <string name="title_audio">Audio</string>
+    <string name="title_welcome">SZFP Pos</string>
+    <string name="print">Print</string>
+    <string name="msg_allowed_location_permission">Location permission is on</string>
+    <string name="msg_not_allowed_loaction_permission">Location permission is forbidden, related map functions are not available</string>
+    <string name="mposmacaddress">MPOSMACADDRESS</string>
+
+    <string name="updateEMV">update EMV</string>
     <!--POS CARD UPDATES MESSAGES -->
     <string name="insert_card">Please Insert your card</string>
     <string name="retry_card">Oops!! , Kindly retry the transaction.</string>
@@ -74,11 +87,13 @@
     <string name="transaction_approved">Approved</string>
     <string name="cashback_amount">Cashback</string>
     <string name="set_amount">Set Amount</string>
+    <string name="unable_to_proceed">Unable to proceed with this transaction</string>
+    <string name="card_mismatch">Card does not match\nPlease re-try with the original transaction card</string>
+
     <string name="card_data">Card Data: </string>
     <string name="do_emv_trade_fail">Start EMV failed</string>
     <string name="do_emv_trade_success">Start EMV success</string>
     <string name="app_version">App Version: </string>
-    <string name="bootloader_version">Bootloader Version: </string>
     <string name="firmware_version">Firmware Version: </string>
     <string name="usb">USB: </string>
     <string name="charge">Charge: </string>

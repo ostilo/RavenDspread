@@ -61,7 +61,7 @@
             android:layout_marginTop="@dimen/dp_20"
             android:layout_height="wrap_content"/>
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnDonCancel"
             style="@style/material_button"
             app:backgroundTint="@null"
