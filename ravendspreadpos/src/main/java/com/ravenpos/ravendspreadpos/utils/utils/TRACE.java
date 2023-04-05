@@ -1,4 +1,4 @@
-package com.ravenpos.ravendspreadpos.utils;
+package com.ravenpos.ravendspreadpos.utils.utils;
 
 import android.util.Log;
 

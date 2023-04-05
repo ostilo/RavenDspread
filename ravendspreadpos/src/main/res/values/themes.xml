@@ -84,4 +84,7 @@
         <item name="cardElevation">@dimen/dp_0</item>
         <item name="android:background">@drawable/corner_background</item>
     </style>
+
+    <style name="Theme.RavenDspread.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
+    <style name="Theme.RavenDspread.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
 </resources>

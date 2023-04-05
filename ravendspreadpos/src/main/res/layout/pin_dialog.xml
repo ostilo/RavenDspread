@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+    
+	<EditText
+	    android:id="@+id/pinEditText"
+	    android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:layout_marginLeft="5dip"
+	    android:layout_marginRight="5dip"
+	    android:hint="@string/pin"
+	    android:inputType="numberPassword" />
+	
+	<LinearLayout
+	    android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:layout_below="@id/pinEditText"
+	    android:orientation="horizontal" >
+	    
+	    <Button
+		    android:id="@+id/confirmButton"
+		    android:layout_width="0dip"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.5"
+		    android:text="@string/confirm" />
+		
+		<Button
+		    android:id="@+id/bypassButton"
+		    android:layout_width="0dip"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.5"
+		    android:text="@string/bypass" />
+		
+		<Button
+		    android:id="@+id/cancelButton"
+		    android:layout_width="0dip"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.5"
+		    android:text="@string/cancel" />
+		
+	</LinearLayout>
+	    
+</RelativeLayout>

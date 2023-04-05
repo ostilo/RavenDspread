@@ -11,6 +11,9 @@ import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
+
+import com.ravenpos.ravendspreadpos.utils.utils.TRACE;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
