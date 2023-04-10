@@ -11,6 +11,22 @@
 
     </style>
 
+
+    <style name="textview" parent="matchwrap">
+        <item name="android:paddingLeft">@dimen/small</item>
+        <item name="android:textColor">@color/purple_200</item>
+        <item name="android:drawablePadding">@dimen/fab_margin</item>
+        <item name="android:layout_marginBottom">@dimen/small</item>
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Medium</item>
+    </style>
+
+    <style name="textview2" parent="textview">
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Body2</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:drawablePadding">@dimen/fab_margin</item>
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
     <style name="NewDialog" parent="@style/Theme.AppCompat.Translucent.NoTitleBar">
         <item name="android:windowIsFloating">true</item>
         <item name="android:windowContentOverlay">@null</item>

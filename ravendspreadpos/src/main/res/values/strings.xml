@@ -28,7 +28,7 @@
     <string name="next">Next</string>
     <string name="previous">Previous</string>
     <string name="btnContinue">Continue</string>
-    <string name="waiting_for_card">Please insert/swipe/tap card now.</string>
+    <string name="waiting_for_card">Please insert your card now.</string>
     <string name="try_another_interface">Please try another interface</string>
     <string name="no_card_detected">No card detected. Please insert or swipe card again and press check card.</string>
     <string name="icc_card_inserted">ICC Card Inserted</string>
@@ -171,5 +171,11 @@
     <string name="write_card">write card</string>
     <string name="transfer_card">Transceive APDU</string>
     <string name="operate_card">operate card</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="four_digit">Enter your four(4) digit transaction PIN</string>
+    <string name="purchase_transaction">Purchase Transaction</string>
+    <string name="connect">Connecting to bluetooth</string>
 
 </resources>

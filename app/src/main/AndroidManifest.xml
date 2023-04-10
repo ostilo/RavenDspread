@@ -42,7 +42,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme.NoActionBar"
         tools:targetApi="31">
-
+        <activity android:name="com.ravenpos.ravendspreadpos.device.PosActivity"/>
         <activity android:name="com.ravenpos.ravendspreadpos.device.MainActivity"/>
         <activity android:name="com.ravenpos.ravendspreadpos.device.WelcomeActivity"/>
 

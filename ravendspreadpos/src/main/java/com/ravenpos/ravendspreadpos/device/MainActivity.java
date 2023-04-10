@@ -293,7 +293,34 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         pref = new MySharedPreference(this);
         initView();
         initIntent();
+        initListener();
     }
+    private void initListener() {
+        MyOnClickListener myOnClickListener = new MyOnClickListener();
+        //btn click
+        doTradeButton.setOnClickListener(myOnClickListener);
+
+        btnBT.setOnClickListener(myOnClickListener);
+        btnDisconnect.setOnClickListener(myOnClickListener);
+        btnUSB.setOnClickListener(myOnClickListener);
+        updateFwBtn.setOnClickListener(myOnClickListener);
+        btnQuickEMV.setOnClickListener(myOnClickListener);
+        pollBtn.setOnClickListener(myOnClickListener);
+        pollULbtn.setOnClickListener(myOnClickListener);
+        finishBtn.setOnClickListener(myOnClickListener);
+        finishULBtn.setOnClickListener(myOnClickListener);
+        readBtn.setOnClickListener(myOnClickListener);
+        writeBtn.setOnClickListener(myOnClickListener);
+        veriftBtn.setOnClickListener(myOnClickListener);
+        veriftULBtn.setOnClickListener(myOnClickListener);
+        operateCardBtn.setOnClickListener(myOnClickListener);
+        getULBtn.setOnClickListener(myOnClickListener);
+        readULBtn.setOnClickListener(myOnClickListener);
+        fastReadUL.setOnClickListener(myOnClickListener);
+        writeULBtn.setOnClickListener(myOnClickListener);
+        transferBtn.setOnClickListener(myOnClickListener);
+    }
+
 
     @Keep
     private void proceedToPayment() {

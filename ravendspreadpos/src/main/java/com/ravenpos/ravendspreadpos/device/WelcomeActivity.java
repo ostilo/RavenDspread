@@ -88,7 +88,6 @@ public class WelcomeActivity extends AppCompatActivity implements View.OnClickLi
         }
     }
 
-
     public void bluetoothRelaPer() {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter != null && !adapter.isEnabled()) {//if bluetooth is disabled, add one fix

@@ -23,7 +23,7 @@ public class EmvTransactionHelper {
             @Override
             public void run() {
                 TransactionType finalTransactionType = TransactionType.PURCHASE;
-                myPosListener.startTransaction(bluetoothAddress, amount, finalTransactionType, null, listenerMutable,new TransactionListener() {
+                myPosListener.startTransaction(activity,bluetoothAddress, amount, finalTransactionType, null, listenerMutable,new TransactionListener() {
                     @Override
                     public void onProcessingError(final RuntimeException message, final int errorcode) {
                         activity.runOnUiThread(new Runnable() {
@@ -55,7 +55,9 @@ public class EmvTransactionHelper {
 
     public static void initialize(Context context) {
         myPosListener = myPosListener != null ? myPosListener :  MyPosListener.initialize(context);
+        MyPosListener myPosListene = myPosListener;
     }
+
     private static void close(){
         try {
             myPosListener.close();

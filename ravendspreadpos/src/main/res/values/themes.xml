@@ -49,6 +49,7 @@
         <item name="android:background">@drawable/check_rate_bg</item>
     </style>
 
+
     <style name="HintTextAppearance" parent="TextAppearance.Design.Hint">
         <item name="android:textColor">@color/black</item>
     </style>
@@ -85,6 +86,11 @@
     <style name="Theme.RavenDspread.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="Theme.RavenDspread.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+    <style name="Theme.RavenDspread.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
 
 
 </resources>
