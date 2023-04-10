@@ -1,17 +1,24 @@
 package com.ravenpos.ravendspread;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
 
+import com.ravenpos.ravendspreadpos.device.WelcomeActivity;
 import com.ravenpos.ravendspreadpos.pos.EmvTransactionHelper;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
 import com.ravenpos.ravendspreadpos.utils.Constants;
@@ -26,6 +33,23 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     private BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     private MyHandler handler;
     private MutableLiveData<String> message;
+    private static final String[] BLE_PERMISSIONS = new String[]{
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+    };
+
+    private static final String[] ANDROID_12_BLE_PERMISSIONS = new String[]{
+            android.Manifest.permission.BLUETOOTH_SCAN,
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+    };
+
+    public static void requestBlePermissions(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            ActivityCompat.requestPermissions(activity, ANDROID_12_BLE_PERMISSIONS, requestCode);
+        else
+            ActivityCompat.requestPermissions(activity, BLE_PERMISSIONS, requestCode);
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,9 +59,28 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         findViewById(R.id.btnTest).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                proceedToPayment();
+                //proceedToPayment();
+                startAccountSelectionActivity(10.0);
             }
         });
+
+        findViewById(R.id.keyDownload).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                requestBlePermissions(MainActivity.this,100);
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 100) {
+            if ( grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                String you = "";
+
+            }
+        }
     }
 
     private void proceedToPayment() {
@@ -81,7 +124,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     }
 
     private void startAccountSelectionActivity(Double amount) {
-        Intent intent = new Intent(this, com.ravenpos.ravendspreadpos.device.MainActivity.class);
+        Intent intent = new Intent(this, WelcomeActivity.class);
         intent.putExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE, "10");
         intent.putExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, amount);
         intent.putExtra(Constants.TERMINAL_ID, "2030LQ01");

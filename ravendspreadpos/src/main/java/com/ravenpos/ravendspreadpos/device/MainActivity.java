@@ -66,6 +66,7 @@ import com.dspread.xpos.QPOSService.TransactionResult;
 import com.dspread.xpos.QPOSService.TransactionType;
 import com.dspread.xpos.QPOSService.UpdateInformationResult;
 import com.ravenpos.ravendspreadpos.BaseActivity;
+import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.R;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
 import com.ravenpos.ravendspreadpos.utils.MySharedPreference;
@@ -293,6 +294,34 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         pref = new MySharedPreference(this);
         initView();
         initIntent();
+        initListener();
+    }
+
+    private void initListener() {
+
+        MyOnClickListener myOnClickListener = new MyOnClickListener();
+        //btn click
+        doTradeButton.setOnClickListener(myOnClickListener);
+
+        btnBT.setOnClickListener(myOnClickListener);
+        btnDisconnect.setOnClickListener(myOnClickListener);
+        btnUSB.setOnClickListener(myOnClickListener);
+        updateFwBtn.setOnClickListener(myOnClickListener);
+        btnQuickEMV.setOnClickListener(myOnClickListener);
+        pollBtn.setOnClickListener(myOnClickListener);
+        pollULbtn.setOnClickListener(myOnClickListener);
+        finishBtn.setOnClickListener(myOnClickListener);
+        finishULBtn.setOnClickListener(myOnClickListener);
+        readBtn.setOnClickListener(myOnClickListener);
+        writeBtn.setOnClickListener(myOnClickListener);
+        veriftBtn.setOnClickListener(myOnClickListener);
+        veriftULBtn.setOnClickListener(myOnClickListener);
+        operateCardBtn.setOnClickListener(myOnClickListener);
+        getULBtn.setOnClickListener(myOnClickListener);
+        readULBtn.setOnClickListener(myOnClickListener);
+        fastReadUL.setOnClickListener(myOnClickListener);
+        writeULBtn.setOnClickListener(myOnClickListener);
+        transferBtn.setOnClickListener(myOnClickListener);
     }
 
     @Keep
@@ -2530,7 +2559,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 }
             } else if (v == btnUSB) {
                 USBClass usb = new USBClass();
-                ArrayList<String> deviceList = usb.GetUSBDevices(getBaseContext());
+                ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getINSTANCE());
                 if (deviceList == null) {
                     Toast.makeText(MainActivity.this, "No Permission", Toast.LENGTH_SHORT).show();
                     return;
@@ -2542,9 +2571,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                     @Override
                     public void onClick(DialogInterface dialog, int item) {
                         String selectedDevice = (String) items[item];
-
                         dialog.dismiss();
-
                         usbDevice = USBClass.getMdevices().get(selectedDevice);
                         open(CommunicationMode.USB_OTG_CDC_ACM);
                         posType = POS_TYPE.OTG;
