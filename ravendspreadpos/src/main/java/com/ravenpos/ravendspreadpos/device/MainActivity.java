@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.PendingIntent;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -49,6 +50,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Keep;
 import androidx.core.app.ActivityCompat;
 
 import com.dspread.xpos.CQPOSService;
@@ -65,14 +67,15 @@ import com.dspread.xpos.QPOSService.TransactionType;
 import com.dspread.xpos.QPOSService.UpdateInformationResult;
 import com.ravenpos.ravendspreadpos.BaseActivity;
 import com.ravenpos.ravendspreadpos.R;
+import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
+import com.ravenpos.ravendspreadpos.utils.MySharedPreference;
+import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
 import com.ravenpos.ravendspreadpos.utils.utils.DUKPK2009_CBC;
 import com.ravenpos.ravendspreadpos.utils.utils.FileUtils;
 import com.ravenpos.ravendspreadpos.utils.utils.ParseASN1Util;
 import com.ravenpos.ravendspreadpos.utils.utils.QPOSUtil;
-import com.ravenpos.ravendspreadpos.utils.utils.ShowGuideView;
 import com.ravenpos.ravendspreadpos.utils.utils.TRACE;
-import com.ravenpos.ravendspreadpos.widget.InnerListview;
 
 
 import java.io.File;
@@ -86,16 +89,16 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import Decoder.BASE64Decoder;
 import Decoder.BASE64Encoder;
 
-public class MainActivity extends BaseActivity implements ShowGuideView.onGuideViewListener {
+public class MainActivity extends BaseActivity implements TransactionListener {
     private QPOSService pos;
     private UpdateThread updateThread;
     private UsbDevice usbDevice;
     private Spinner cmdSp;
-    private InnerListview m_ListView;
     private EditText statusEditText, blockAdd, status, status11, block_address11;
     private EditText mhipStatus;
     private MyListViewAdapter m_Adapter = null;
@@ -132,39 +135,40 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
     private boolean isPinCanceled = false;
     private boolean isNormalBlu = false;//to judge if is normal bluetooth
     private int type;
-    private ShowGuideView showGuideView;
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
     private String deviceSignCert;
 
     private POS_TYPE posType = POS_TYPE.BLUETOOTH;
 
+    private BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+
+    private MySharedPreference pref;
+
     @Override
-    public void onGuideListener(Button button) {
-        int id = button.getId();
-        if (id == R.id.doTradeButton) {
-            showGuideView.show(btnDisconnect, MainActivity.this, getString(R.string.msg_disconnect));
-        } else if (id == R.id.disconnect) {
-            showGuideView.show(btnUSB, MainActivity.this, getString(R.string.msg_conn_usb));
-        } else if (id == R.id.btnBT) {
-            showGuideView.show(doTradeButton, MainActivity.this, getString(R.string.msg_do_trade));
-        }
+    public void onProcessingError(RuntimeException message, int errorcode) {
+
+    }
+
+    @Override
+    public void onCompleteTransaction(TransactionResponse response) {
+
     }
 
     private enum POS_TYPE {
         BLUETOOTH, AUDIO, UART, USB, OTG, BLUETOOTH_BLE
     }
 
-    private void onBTPosSelected(Activity activity, View itemView, int index) {
+    private void onBTPosSelected(Activity activity,int index, String blueTootchAddress,String blueTitle ) {
         if (isNormalBlu) {
             pos.stopScanQPos2Mode();
         } else {
             pos.stopScanQposBLE();
         }
         start_time = new Date().getTime();
-        Map<String, ?> dev = (Map<String, ?>) m_Adapter.getItem(index);
-        blueTootchAddress = (String) dev.get("ADDRESS");
-        blueTitle = (String) dev.get("TITLE");
-        blueTitle = blueTitle.split("\\(")[0];
+    //    Map<String, ?> dev = (Map<String, ?>) m_Adapter.getItem(index);
+        this.blueTootchAddress = blueTootchAddress;
+        this.blueTitle = blueTitle;
+        this. blueTitle = this.blueTitle.split("\\(")[0];
         sendMsg(1001);
     }
 
@@ -204,16 +208,6 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
         return data;
     }
 
-    private void refreshAdapter() {
-        if (m_Adapter != null) {
-            m_Adapter.clearData();
-            m_Adapter = null;
-        }
-        List<Map<String, ?>> data = generateAdapterData();
-        m_Adapter = new MyListViewAdapter(this, data);
-        m_ListView.setAdapter(m_Adapter);
-        setListViewHeightBasedOnChildren(m_ListView);
-    }
 
     private class MyListViewAdapter extends BaseAdapter {
         private List<Map<String, ?>> m_DataMap;
@@ -288,20 +282,73 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
         listView.setLayoutParams(params);
     }
 
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.pos_loader);
+        int tt = R.layout.activity_main;
         //When the window is visible to the user, keep the device normally open and keep the brightness unchanged
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        pref = new MySharedPreference(this);
         initView();
         initIntent();
-        initListener();
     }
+
+    @Keep
+    private void proceedToPayment() {
+        try {
+            if (!btAdapter.isEnabled()) {
+                btAdapter.enable();
+                Thread.sleep(2000);
+            }
+            String macAddress = pref.getLastMacAddress();
+            selectBluetoothDevice(this, this);
+            if (macAddress == null)
+                Toast.makeText(this,"",Toast.LENGTH_SHORT);
+               // selectBluetoothDevice(this, this);
+            else Toast.makeText(this,"",Toast.LENGTH_SHORT);
+             //   startEmV(macAddress, this, this);
+        } catch (Exception e) {
+        }
+    }
+
+    @Keep
+    private void selectBluetoothDevice(final Activity accountTypeActivity, final TransactionListener listener) {
+        @SuppressLint("MissingPermission") final Set<BluetoothDevice> pairedBTDevices = btAdapter.getBondedDevices();
+        List<String> deviceNames = getDeviceNames(pairedBTDevices);
+        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, deviceNames);
+        AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
+        alertDialog.setAdapter(adapter, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                String btDevice = ((BluetoothDevice) pairedBTDevices.toArray()[which]).getAddress();
+                String btDeviceName = ((BluetoothDevice) pairedBTDevices.toArray()[which]).getName();
+                pref.setLastMacAddress(btDevice);
+                onBTPosSelected(MainActivity.this, which,btDevice,btDeviceName);
+               // startEmV(btDevice, accountTypeActivity, listener);
+            }
+        });
+        alertDialog.setTitle("Select Bluetooth Device");
+        alertDialog.show();
+    }
+
+    @SuppressLint("MissingPermission")
+    @Keep
+    private List<String> getDeviceNames(Set<BluetoothDevice> pairedBTDevices) {
+        List<String> temp = new ArrayList<>();
+        for (BluetoothDevice device : pairedBTDevices) {
+            temp.add(device.getName());
+        }
+        return temp;
+    }
+
 
 
     private void initIntent() {
         Intent intent = getIntent();
-        type = intent.getIntExtra("connect_type", 0);
+        type = intent.getIntExtra("connect_type", 3);
         switch (type) {
             case 3://normal bluetooth
                 btnBT.setVisibility(View.VISIBLE);
@@ -318,13 +365,14 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
     }
 
     private void initView() {
-        showGuideView = new ShowGuideView();
-        imvAnimScan = (ImageView) findViewById(R.id.img_anim_scanbt);
+        doTradeButton = this.findViewById(R.id.doTradeButton);//start to do trade
+
+        imvAnimScan = findViewById(R.id.img_anim_scanbt);
         animScan = (AnimationDrawable) getResources().getDrawable(R.drawable.progressanmi);
         imvAnimScan.setBackgroundDrawable(animScan);
 
-        mafireLi = (LinearLayout) findViewById(R.id.mifareid);
-        mafireUL = (LinearLayout) findViewById(R.id.ul_ll);
+        mafireLi = findViewById(R.id.mifareid);
+        mafireUL = findViewById(R.id.ul_ll);
         status = (EditText) findViewById(R.id.status);
         status11 = (EditText) findViewById(R.id.status11);
 
@@ -345,7 +393,6 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
         String[] keyClass = new String[]{"Key A", "Key B"};
         ArrayAdapter<String> spinneradapter = new ArrayAdapter<String>(MainActivity.this, android.R.layout.simple_spinner_item, keyClass);
         mafireSpinner.setAdapter(spinneradapter);
-        doTradeButton = (Button) findViewById(R.id.doTradeButton);//start to do trade
         statusEditText = (EditText) findViewById(R.id.statusEditText);
         mhipStatus = (findViewById(R.id.chipStatus));
         btnBT = (Button) findViewById(R.id.btnBT);//start to scan bluetooth device
@@ -368,53 +415,10 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
 
         ScrollView parentScrollView = (ScrollView) findViewById(R.id.parentScrollview);
         parentScrollView.smoothScrollTo(0, 0);
-        m_ListView = (InnerListview) findViewById(R.id.lv_indicator_BTPOS);
         mKeyIndex = ((EditText) findViewById(R.id.keyindex));
-        btnBT.post(new Runnable() {
-            @Override
-            public void run() {
-                showGuideView.show(btnBT, MainActivity.this, getString(R.string.msg_select_device));
-            }
-        });
-        showGuideView.setListener(this);
+
     }
 
-    private void initListener() {
-        m_ListView.setOnItemClickListener(new OnItemClickListener() {
-
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view,
-                                    int position, long id) {
-                onBTPosSelected(MainActivity.this, view, position);
-                m_ListView.setVisibility(View.GONE);
-                animScan.stop();
-                imvAnimScan.setVisibility(View.GONE);
-            }
-        });
-        MyOnClickListener myOnClickListener = new MyOnClickListener();
-        //btn click
-        doTradeButton.setOnClickListener(myOnClickListener);
-
-        btnBT.setOnClickListener(myOnClickListener);
-        btnDisconnect.setOnClickListener(myOnClickListener);
-        btnUSB.setOnClickListener(myOnClickListener);
-        updateFwBtn.setOnClickListener(myOnClickListener);
-        btnQuickEMV.setOnClickListener(myOnClickListener);
-        pollBtn.setOnClickListener(myOnClickListener);
-        pollULbtn.setOnClickListener(myOnClickListener);
-        finishBtn.setOnClickListener(myOnClickListener);
-        finishULBtn.setOnClickListener(myOnClickListener);
-        readBtn.setOnClickListener(myOnClickListener);
-        writeBtn.setOnClickListener(myOnClickListener);
-        veriftBtn.setOnClickListener(myOnClickListener);
-        veriftULBtn.setOnClickListener(myOnClickListener);
-        operateCardBtn.setOnClickListener(myOnClickListener);
-        getULBtn.setOnClickListener(myOnClickListener);
-        readULBtn.setOnClickListener(myOnClickListener);
-        fastReadUL.setOnClickListener(myOnClickListener);
-        writeULBtn.setOnClickListener(myOnClickListener);
-        transferBtn.setOnClickListener(myOnClickListener);
-    }
 
     public static String getDigitalEnvelopStr(String encryptData, String encryptDataWith3des, String keyType, String clearData, String signData, String IV) {
         int encryptDataLen = (encryptData.length() / 2);
@@ -739,36 +743,6 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
 
     private int yourChoice = 0;
 
-    private void showSingleChoiceDialog() {
-        final String[] items = {"Mifare classic 1", "Mifare UL"};
-//	    yourChoice = -1;
-        AlertDialog.Builder singleChoiceDialog =
-                new AlertDialog.Builder(MainActivity.this);
-        singleChoiceDialog.setTitle("please select one");
-        // The second parameter is default
-        singleChoiceDialog.setSingleChoiceItems(items, 0,
-                new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        yourChoice = which;
-                    }
-                });
-        singleChoiceDialog.setPositiveButton("OK",
-                new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if (yourChoice == 0) {
-                            mafireLi.setVisibility(View.VISIBLE);//display m1 mafire card
-                            mafireUL.setVisibility(View.GONE);//display ul mafire card
-                        } else if (yourChoice == 1) {
-                            mafireLi.setVisibility(View.GONE);
-                            mafireUL.setVisibility(View.VISIBLE);
-                        }
-                    }
-                });
-        singleChoiceDialog.show();
-    }
-
     public void dismissDialog() {
         if (dialog != null) {
             dialog.dismiss();
@@ -908,7 +882,8 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
                     }
                 }
                 statusEditText.setText(content);
-            } else if ((result == DoTradeResult.NFC_ONLINE) || (result == DoTradeResult.NFC_OFFLINE)) {
+            }
+            else if ((result == DoTradeResult.NFC_ONLINE) || (result == DoTradeResult.NFC_OFFLINE)) {
                 nfcLog = decodeData.get("nfcLog");
                 String content = getString(R.string.tap_card);
                 String formatID = decodeData.get("formatID");
@@ -1037,7 +1012,6 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
             String pciHardwareVersion = posInfoData.get("PCI_hardwareVersion") == null ? ""
                     : posInfoData.get("PCI_hardwareVersion");
             String content = "";
-            content += getString(R.string.bootloader_version) + bootloaderVersion + "\n";
             content += getString(R.string.firmware_version) + firmwareVersion + "\n";
             content += getString(R.string.usb) + isUsbConnected + "\n";
             content += getString(R.string.charge) + isCharging + "\n";
@@ -1962,17 +1936,11 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
 
         @Override
         public void onDeviceFound(BluetoothDevice arg0) {
-            if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case whehgoore the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return;
-            }
+
             if (arg0 != null && arg0.getName() != null) {
+                proceedToPayment();
+
+               /*
                 TRACE.d("onDeviceFound(BluetoothDevice arg0):" + arg0.getName() + ":" + arg0.toString());
                 m_ListView.setVisibility(View.VISIBLE);
                 animScan.start();
@@ -1993,7 +1961,9 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
                 name += address + "\n";
                 statusEditText.setText(name);
                 TRACE.d("found new device" + name);
-            } else {
+                */
+            }
+            else {
                 statusEditText.setText("Don't found new device");
                 TRACE.d("Don't found new device");
             }
@@ -2594,8 +2564,10 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
                         open(CommunicationMode.BLUETOOTH_BLE);
                         posType = POS_TYPE.BLUETOOTH_BLE;
                     }
+                }else {
+                    pos.clearBluetoothBuffer();
                 }
-                pos.clearBluetoothBuffer();
+
                 if (isNormalBlu) {
                     TRACE.d("begin scan====");
                     pos.scanQPos2Mode(MainActivity.this, 20);
@@ -2608,7 +2580,7 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
                     TRACE.d("+++++=" + m_Adapter);
                     m_Adapter.notifyDataSetChanged();
                 }else{
-                    refreshAdapter();
+                  //  refreshAdapter();
                 }
             } else if (v == btnDisconnect) {
                 close();
@@ -2767,24 +2739,6 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
                     statusEditText.setText(content);
                     break;
                 case 1703:
-//                    int keyIndex = getKeyIndex();
-//                    String digEnvelopStr = null;
-//                    Poskeys posKeys = null;
-//                    try {
-//                        if (resetIpekFlag) {
-//                            posKeys = new DukptKeys();
-//                        }
-//                        if (resetMasterKeyFlag) {
-//                            posKeys = new TMKKey();
-//                        }
-//                        posKeys.setRSA_public_key(pubModel); //Model of device public key
-//                        digEnvelopStr = Envelope.getDigitalEnvelopStrByKey(getAssets().open("priva.pem"),
-//                                posKeys, Poskeys.RSA_KEY_LEN.RSA_KEY_1024, keyIndex);
-//                    } catch (Exception e) {
-//                        e.printStackTrace();
-//                    }
-//                    pos.updateWorkKey(digEnvelopStr);
-//                    break;
                 default:
                     break;
             }

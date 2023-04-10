@@ -3,6 +3,7 @@ package com.ravenpos.ravendspreadpos;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -14,10 +15,10 @@ import com.google.android.material.button.MaterialButton;
 /**
  * Created by AYODEJI on 05/15/2023.
  */
-public class BaseActivity extends AppCompatActivity {
+public  class BaseActivity extends AppCompatActivity {
 
     private BottomSheetDialog cancelDialog;
-    private MaterialButton btnContinue;
+    private Button btnContinue;
     private final String LOG_TAG = BaseActivity.class.getSimpleName();
 
     @Override
