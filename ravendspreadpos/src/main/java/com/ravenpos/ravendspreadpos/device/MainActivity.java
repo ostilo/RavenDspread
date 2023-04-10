@@ -1968,7 +1968,7 @@ public class MainActivity extends BaseActivity implements ShowGuideView.onGuideV
                 // here to request the missing permissions, and then overriding
                 //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
                 //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
+                // to handle the case whehgoore the user grants the permission. See the documentation
                 // for ActivityCompat#requestPermissions for more details.
                 return;
             }
