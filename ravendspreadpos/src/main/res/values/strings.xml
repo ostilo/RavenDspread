@@ -140,7 +140,7 @@
     <string name="title_ble">Ble Bluetooth</string>
     <string name="starting">Starting…</string>
     <string name="scan_bt_pos_error">no paired bluetooth device\nplease pair bluetooth device first</string>
-    <string name="connecting_bt_pos">connecting\nPlease wait…</string>
+    <string name="connecting_bt_pos">Please wait…</string>
     <string name="transaction_result">Transaction Result</string>
     <string name="please_select_app">Please select app</string>
     <string name="amount">Amount</string>
@@ -177,5 +177,6 @@
     <string name="four_digit">Enter your four(4) digit transaction PIN</string>
     <string name="purchase_transaction">Purchase Transaction</string>
     <string name="connect">Connecting to bluetooth</string>
+    <string name="title_activity_raven">RavenActivity</string>
 
 </resources>

@@ -371,8 +371,6 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         return temp;
     }
 
-
-
     private void initIntent() {
         Intent intent = getIntent();
         type = intent.getIntExtra("connect_type", 3);
@@ -746,10 +744,10 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             if (pos != null) {
                 if (isNormalBlu) {
                     //stop to scan bluetooth
-                    pos.stopScanQPos2Mode();
+                  //  pos.stopScanQPos2Mode();
                 } else {
                     //stop to scan ble
-                    pos.stopScanQposBLE();
+                  //  pos.stopScanQposBLE();
                 }
             }
         }

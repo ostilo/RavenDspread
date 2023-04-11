@@ -14,6 +14,7 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 
 import com.ravenpos.ravendspreadpos.device.PosActivity;
+import com.ravenpos.ravendspreadpos.device.RavenActivity;
 import com.ravenpos.ravendspreadpos.device.WelcomeActivity;
 import com.ravenpos.ravendspreadpos.pos.EmvTransactionHelper;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
@@ -82,12 +83,12 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
 
     private void startEmV( final String btMacAddress){
         handler.sendEmptyMessage(0);
-        EmvTransactionHelper.initialize(this);
-        EmvTransactionHelper.startTransaction(this, btMacAddress,10.0, message,this);
+        //EmvTransactionHelper.initialize(this);
+      //  EmvTransactionHelper.startTransaction(this, btMacAddress,10.0, message,this);
     }
 
     private void startAccountSelectionActivity(Double amount) {
-        Intent intent = new Intent(this, WelcomeActivity.class);
+        Intent intent = new Intent(this, RavenActivity.class);
         intent.putExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE, "10");
         intent.putExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, amount);
         intent.putExtra(Constants.TERMINAL_ID, "2030LQ01");

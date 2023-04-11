@@ -55,6 +55,7 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 app:cursorColor="@color/black"
+                android:password="true"
                 app:cursorWidth="2dp"
                 app:hideLineWhenFilled="true"
                 app:itemCount="4"

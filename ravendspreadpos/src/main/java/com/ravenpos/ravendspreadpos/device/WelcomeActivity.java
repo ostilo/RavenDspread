@@ -54,9 +54,7 @@ public class WelcomeActivity extends AppCompatActivity implements View.OnClickLi
         normal_blu.setOnClickListener(this);
         other_blu.setOnClickListener(this);
         print.setOnClickListener(this);
-        bluetoothRelaPer();
-
-
+     //   bluetoothRelaPer();
     }
 
 
