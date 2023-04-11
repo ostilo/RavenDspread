@@ -129,22 +129,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private String accountType;
 
 
-    private static final String[] BLE_PERMISSIONS = new String[]{
-            android.Manifest.permission.ACCESS_COARSE_LOCATION,
-            android.Manifest.permission.ACCESS_FINE_LOCATION,
-    };
 
-    private static final String[] ANDROID_12_BLE_PERMISSIONS = new String[]{
-            android.Manifest.permission.BLUETOOTH_SCAN,
-            android.Manifest.permission.BLUETOOTH_CONNECT,
-            android.Manifest.permission.ACCESS_FINE_LOCATION,
-    };
-    public static void requestBlePermissions(Activity activity, int requestCode) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            ActivityCompat.requestPermissions(activity, ANDROID_12_BLE_PERMISSIONS, requestCode);
-        else
-            ActivityCompat.requestPermissions(activity, BLE_PERMISSIONS, requestCode);
-    }
     private void clearDisplay() {
         message.postValue("");
     }

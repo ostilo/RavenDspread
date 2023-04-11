@@ -3,12 +3,15 @@ package com.ravenpos.ravendspread;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -30,6 +33,24 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     private BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     private MyHandler handler;
     private MutableLiveData<String> message;
+
+    private static final String[] BLE_PERMISSIONS = new String[]{
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+    };
+
+    private static final String[] ANDROID_12_BLE_PERMISSIONS = new String[]{
+            android.Manifest.permission.BLUETOOTH_SCAN,
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+    };
+
+    public static void requestBlePermissions(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            ActivityCompat.requestPermissions(activity, ANDROID_12_BLE_PERMISSIONS, requestCode);
+        else
+            ActivityCompat.requestPermissions(activity, BLE_PERMISSIONS, requestCode);
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,6 +61,12 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             @Override
             public void onClick(View view) {
                 startAccountSelectionActivity(10.0);
+            }
+        });
+        findViewById(R.id.keyDownload).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                requestBlePermissions(MainActivity.this,100);
             }
         });
     }
