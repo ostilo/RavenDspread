@@ -20,13 +20,16 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.nfc.Tag;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.RemoteException;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -42,22 +45,29 @@ import com.chaos.view.PinView;
 import com.dspread.xpos.CQPOSService;
 import com.dspread.xpos.QPOSService;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.gson.Gson;
 import com.google.zxing.common.StringUtils;
+import com.pnsol.sdk.miura.emv.EmvTags;
 import com.ravenpos.ravendspreadpos.BaseActivity;
 import com.ravenpos.ravendspreadpos.R;
 import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
 import com.ravenpos.ravendspreadpos.utils.Constants;
+import com.ravenpos.ravendspreadpos.utils.MessagePacker;
+import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
+import com.ravenpos.ravendspreadpos.utils.TransactionMessage;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
 import com.ravenpos.ravendspreadpos.utils.utils.DUKPK2009_CBC;
 import com.ravenpos.ravendspreadpos.utils.utils.ParseASN1Util;
 import com.ravenpos.ravendspreadpos.utils.utils.QPOSUtil;
+import com.ravenpos.ravendspreadpos.utils.utils.SharedPreferencesUtils;
 import com.ravenpos.ravendspreadpos.utils.utils.TRACE;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
@@ -71,9 +81,10 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private final String currencyCode = "566";
     private ActivityRavenBinding binding;
 
-    private QPOSService pos;
+    public QPOSService pos;
     private UsbDevice usbDevice;
     private Dialog dialog;
+    private Hashtable<String, String> tagList;
     private String verifySignatureCommand, pedvVerifySignatureCommand;
     private String KB;
     private boolean isInitKey;
@@ -89,6 +100,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private boolean isPinCanceled = false;
     private boolean isNormalBlu = false;//to judge if is normal bluetooth
     private int type;
+    private String ICCDATA, ID, PINBLOCK, TLV;
+    private String _responseCode;
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
     private String deviceSignCert;
     private BottomSheetDialog pinDialog;
@@ -114,6 +127,24 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private String businessName;
 
     private String accountType;
+
+
+    private static final String[] BLE_PERMISSIONS = new String[]{
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+    };
+
+    private static final String[] ANDROID_12_BLE_PERMISSIONS = new String[]{
+            android.Manifest.permission.BLUETOOTH_SCAN,
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+    };
+    public static void requestBlePermissions(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            ActivityCompat.requestPermissions(activity, ANDROID_12_BLE_PERMISSIONS, requestCode);
+        else
+            ActivityCompat.requestPermissions(activity, BLE_PERMISSIONS, requestCode);
+    }
     private void clearDisplay() {
         message.postValue("");
     }
@@ -144,6 +175,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         binding = ActivityRavenBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         Intent intent = getIntent();
+        _responseCode = "00";
         if (intent != null) {
             totalAmount = intent.getDoubleExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, 0.0);
             accountType = intent.getStringExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE);
@@ -182,6 +214,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         } else {
             incompleteParameters();
         }
+      //  requestBlePermissions();
         message = new MutableLiveData<>();
         binding.spinKit.setImageResource(R.drawable.insert_card_one);
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
@@ -276,12 +309,186 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }
     }
 
+    public static String getField4(String amountStr) {
+        int index = amountStr.indexOf(".");
+        if (amountStr.substring(index + 1, amountStr.length()).length() < 2) {
+            amountStr = amountStr + "0";
+        }
+        amountStr = amountStr.replace(".", "");
+        int amtlen = amountStr.length();
+        StringBuilder amtBuilder = new StringBuilder();
+        if (amtlen < 12) {
+            for (int i = 0; i < (12 - amtlen); i++) {
+                amtBuilder.append("0");
+            }
+        }
+        amtBuilder.append(amountStr);
+        amountStr = amtBuilder.toString();
+        return amountStr;
+    }
+
+    public static String getServiceCode(String track2Data) {
+        int indexOfToken = track2Data.indexOf("D");
+        int indexOfServiceCode = indexOfToken + 5;
+        int lengthOfServiceCode = 3;
+        return track2Data.substring(indexOfServiceCode, indexOfServiceCode + lengthOfServiceCode);
+    }
+
+    public static String getExpiryDate(String track2Data) {
+        int indexOfToken = track2Data.indexOf("D");
+        int indexOfExpiryDate = indexOfToken + 1;
+        int lengthOfExpiryDate = 4;
+        return track2Data.substring(indexOfExpiryDate, indexOfExpiryDate + lengthOfExpiryDate);
+    }
     @Override
     public void onCompleteTransaction(TransactionResponse response) {
+
+        RavenEmv ravenEmv = new RavenEmv();
+        response.TerminaID = terminalId;
+        response.totalAmoount = String.valueOf(totalAmount.intValue());
+        response.amount = String.valueOf(totalAmount.intValue());
+        ravenEmv.dataModel = response;
+        String fullPay = new Gson().toJson(response);
+        showResult(binding.posViewUpdate, "");
+        Log.e("TRANS DONE", new Gson().toJson(response));
+        Gson gson = new Gson();
+
+        TransactionMessage msg = new TransactionMessage();
+        msg.setField0("0200");
+        msg.setField2(response.CardNo);
+        msg.setField3("00"+accountType+"00");
+        msg.setField4(getField4(String.valueOf(totalAmount.intValue())+ "00"));
+
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MMddhhmmss");
+        String datetime = simpleDateFormat.format(new Date());
+        msg.setField7(datetime);
+
+
+        SimpleDateFormat dateFormatStan = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+        //simpleDateFormat = new SimpleDateFormat("hhmmss");
+        String stan = dateFormatStan.format(new Date());
+        String newStan = stan.substring(stan.length() - 6);
+
+
+        msg.setField11(newStan);
+        msg.setField12(newStan);
+
+        simpleDateFormat = new SimpleDateFormat("MMdd");
+        String date = simpleDateFormat.format(new Date());
+        msg.setField13(date);
+
+        msg.setField14(getExpiryDate(response.Track2));
+        msg.setField18("5251");
+        msg.setField22("051");
+        msg.setField23(response.CardSequenceNumber);
+        msg.setField25("00");
+        msg.setField26("06");//12;
+        msg.setField28("D00000000");
+        msg.setField32(response.Track2.substring(0, 6));
+        msg.setField35(response.Track2);
+
+        // SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+        ///String pre = dateFormat.format(new Date());
+        String newPre = stan.substring(stan.length() - 12);
+
+        msg.setField37(newPre);
+        msg.setField40(getServiceCode(response.Track2));
+        msg.setField41(response.TerminaID);
+        msg.setField42(Mid);
+        //  msg.setField42("2030LA000490601");
+        //  msg.setField43("NETOP BUSINESS SYSTEMS LA           LANG");
+        msg.setField43(businessName);
+        msg.setField49("566");
+        if(response.PinBlock != null){
+            if (!response.PinBlock.isEmpty()) {
+                if(!response.PinBlock.equals("31393937")){
+                    msg.setField52(response.PinBlock);
+                }
+            }
+        }
+        msg.setField55(response.IccData);
+
+        msg.setField123("510101511344101");
+
+        msg.setClrsesskey(clearSessionKey);
+        msg.setPort(port);
+        msg.setHost(Ip);
+        msg.setSsl(true);
+        msg.setTotalamount(totalAmount.intValue());
+        msg.setRrn(newPre);
+        msg.setStan(newStan);
+        msg.setTrack(response.Track2);
+        msg.setExpirydate(getExpiryDate(response.Track2));
+        msg.setPan(response.CardNo);
+        msg.setTid(terminalId);
+        msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
+        msg.setUnpredictable(SharedPreferencesUtils.getInstance().getStringValue("9F37", ""));
+        msg.setCapabilities(SharedPreferencesUtils.getInstance().getStringValue("9F33", ""));
+        msg.setCryptogram(SharedPreferencesUtils.getInstance().getStringValue("9F26", ""));
+        msg.setTvr(SharedPreferencesUtils.getInstance().getStringValue("95", ""));
+
+        msg.setIad(SharedPreferencesUtils.getInstance().getStringValue("9F10", ""));
+
+        msg.setCvm(SharedPreferencesUtils.getInstance().getStringValue("9F34", ""));
+
+        msg.setCip("");
+        msg.setAmount(String.valueOf(totalAmount.intValue()));
+
+        msg.setAtc(SharedPreferencesUtils.getInstance().getStringValue("9F36", ""));
+
+        msg.setAip(SharedPreferencesUtils.getInstance().getStringValue("82", ""));
+
+        msg.setPanseqno(response.CardSequenceNumber);
+
+        if(response.PinBlock != null){
+            if(!response.PinBlock.equals("31393937")){
+                msg.setPinblock(response.PinBlock);
+            }
+
+        }
+
+
+        msg.setClrpin(clearPinKey);
+
+        msg.setAccount(getAccountTypeString(accountType));
+
+        msg.setSn(snKey);
+
+        msg.setMid(Mid);
+
+        msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
+        msg.setField128(MessagePacker.generateHashData(msg));
+
+        String msgToIso = new Gson().toJson(msg);
+
+        ravenEmv.nibbsEmv = msg;
+        String fullRes = new Gson().toJson(ravenEmv);
+
+
 
         Intent intent = new Intent();
         intent.putExtra(getString(R.string.data), response);
         setResult(Activity.RESULT_OK, intent);
+    }
+
+    private  String getAccountTypeString(String code){
+        String codeMsg = "Savings";
+        switch (code){
+            case "00":
+                codeMsg =  "Default";
+                break;
+            case "10":
+                codeMsg =  "Savings";
+                break;
+            case "20":
+                codeMsg =  "Current";
+                break;
+            case "30":
+                codeMsg =  "Credit";
+                break;
+        }
+
+        return  codeMsg;
     }
 
     /**
@@ -757,8 +964,10 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             String content = getString(R.string.batch_data);
             TRACE.d("onRequestBatchData(String tlv):" + tlv);
             content += tlv;
+            TLV = tlv;
             message.postValue(getString(R.string.connecting_bt_pos));
           //  message.postValue(content);
+            pos.getQposId();
         }
 
         @Override
@@ -772,6 +981,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         @Override
         public void onQposIdResult(Hashtable<String, String> posIdTable) {
+            ID = posIdTable.get("posId") == null ? "" : posIdTable.get("posId");
             TRACE.w("onQposIdResult():" + posIdTable.toString());
             String posId = posIdTable.get("posId") == null ? "" : posIdTable.get("posId");
             String csn = posIdTable.get("csn") == null ? "" : posIdTable.get("csn");
@@ -785,7 +995,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             content += "conn: " + pos.getBluetoothState() + "\n";
             content += "psamId: " + psamId + "\n";
             content += "NFCId: " + NFCId + "\n";
-            message.postValue(content);
+            message.postValue(getString(R.string.defaultloading));
+            TransactionResponse  transactionResponse =   showEmvTransResult();
+            onCompleteTransaction(transactionResponse);
         }
 
         @Override
@@ -847,6 +1059,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onRequestOnlineProcess(final String tlv) {
             TRACE.d("onRequestOnlineProcess" + tlv);
+            tagList = getTags();
+            ICCDATA = getICCTags();
             if (isPinCanceled) {
                 pos.sendOnlineProcessResult(null);
             }
@@ -1243,7 +1457,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 //                            pos.sendPin(pin);
 //                        }
                         pos.sendPin(pin);
-                      //  dismissDialog();
+                         dismissDialog();
                     } else {
                         Toast.makeText(RavenActivity.this, "The length just can input 4 - 12 digits", Toast.LENGTH_LONG).show();
                     }
@@ -1265,7 +1479,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 public void onClick(View v) {
                     isPinCanceled = true;
                     pos.cancelPin();
-                 dismissDialog();
+                    dismissDialog();
                     onProcessingError(new RuntimeException("PIN Cancelled"),100);
                 }
             });
@@ -2045,7 +2259,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
  */
 
     public void dismissDialog(){
-        dialog.dismiss();
+        if (dialog != null){
+            dialog.dismiss();
+        }
     }
     public static String getDigitalEnvelopStr(String encryptData, String encryptDataWith3des, String keyType, String clearData, String signData, String IV) {
         int encryptDataLen = (encryptData.length() / 2);
@@ -2061,5 +2277,172 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         System.out.println("sys = " + result);
         return result;
     }
+
+    protected  String getPanFromTrack2() {
+        String track2 = readTrack2();
+        if (track2 != null) {
+            for (int i = 0; i < track2.length(); i++) {
+                if (track2.charAt(i) == '=' || track2.charAt(i) == 'D') {
+                    int endIndex = Math.min(i, 19);
+                    return track2.substring(0, endIndex);
+                }
+            }
+        }
+        return null;
+    }
+
+    public  String readTrack2() {
+        String track2 = null;
+        try {
+            track2 = pos.getICCTag(0,1,"57").get("tlv");
+            if (track2 == null || track2.isEmpty()) {
+                track2 = pos.getICCTag(0,1,"9F20").get("tlv");
+            }
+            if (track2 == null || track2.isEmpty()) {
+                track2 = pos.getICCTag(0,1,"9F6B").get("tlv");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (!TextUtils.isEmpty(track2) && track2.endsWith("F")) {
+            return track2.substring(0, track2.length() - 1);
+        }
+        return track2;
+    }
+    public  String readPan() {
+        String pan = null;
+        try {
+            pan = pos.getICCTag(0,1,"5A").get("tlv");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (TextUtils.isEmpty(pan)) {
+            return getPanFromTrack2();
+        }
+        if (pan.endsWith("F")) {
+            return pan.substring(0, pan.length() - 1);
+        }
+        return pan;
+    }
+    private static String getCardHolderFromTrack1(String track1) {
+        if (track1 != null && track1.length() > 20) {
+            int idx = track1.indexOf('^');
+            String temp = track1.substring(idx + 1);
+            return temp.substring(0, temp.indexOf('^'));
+        }
+        return null;
+    }
+
+    public  String readCardHolder() {
+        String cardHolderName = null;
+        try {
+            cardHolderName = pos.getICCTag(0,1,"5F20").get("tlv");
+            if (cardHolderName == null || cardHolderName.isEmpty()) {
+                String track1 =pos.getICCTag(0,1,"56").get("tlv");
+                cardHolderName = getCardHolderFromTrack1(track1);
+            }
+            return cardHolderName;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public  TransactionResponse showEmvTransResult() {
+        TransactionResponse mResponse = new TransactionResponse();
+        try {
+            mResponse.amount = String.valueOf(totalAmountPrint);
+            mResponse.CardNo = readPan();
+            mResponse.IccData = ICCDATA;
+                if(pos.getICCTag(0,1,"4F") != null){
+                    mResponse.CardOrg = pos.getICCTag(0,1,"4F").get("tlv");
+                }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if(pos.getICCTag(0,1,"5F24") != null){
+            mResponse.ExpireDate = pos.getICCTag(0,1,"5F24").get("tlv");
+        }
+        if(pos.getICCTag(0,1,"5F20") != null){
+            mResponse.CardHolderName = pos.getICCTag(0,1,"5F20").get("tlv");
+        }else{
+            String name = readCardHolder();
+            mResponse.CardHolderName = name;
+        }
+
+        if(pos.getICCTag(0,1,"5F34") != null){
+            mResponse.CardSequenceNumber = pos.getICCTag(0,1,"5F34").get("tlv");
+        }
+
+        if(pos.getICCTag(0,1,"9F12") != null){
+            mResponse.CardType = pos.getICCTag(0,1,"9F12").get("tlv");
+        }
+
+        mResponse.TransactionType = "00"; //POS TRANSACTION
+        mResponse.AccountType = accountType;
+        if (PINBLOCK != null) {
+            mResponse.PinBlock = PINBLOCK;
+        }
+        if(ID != null){
+            mResponse.MacAddress = ID;
+        }
+        StringBuilder builder = new StringBuilder();
+        for(String s : tags){
+            String tag = pos.getICCTag(0,1,s).get("tlv");
+            if(tag != null){
+                builder.append(tag);
+                SharedPreferencesUtils.getInstance().setValue(tag, tag);
+            }
+        }
+
+        mResponse.Track2 = readTrack2();
+        mResponse.responseCode = _responseCode;
+        return mResponse;
+    }
+
+    private String extractTag(Tag tag){
+        try {
+            return pos.getTag(tagList.get(tag.toString())).get(0).getValue();
+        }catch (Exception e){
+            return "";
+        }
+    }
+    String[] tags = new String[]{"9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A", "5F34", "82", "9F1A", "9F03", "9F33", "9F34", "9F35"};
+
+
+    private Hashtable<String,String> getTags() {
+        Hashtable<String, String> decodeData = new Hashtable<>();
+        decodeData.put(EmvTags.APPLICATION_IDENTIFIER_TERMINAL.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_IDENTIFIER_TERMINAL.toString()).get("tlv"));
+        decodeData.put(EmvTags.TRANSACTION_TIME.toString(), "9A03".concat(terminalTime.substring(2,8)));
+        decodeData.put(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER_SEQUENCE_NUMBER.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER_SEQUENCE_NUMBER.toString()).get("tlv"));
+        decodeData.put(EmvTags.AMOUNT_AUTHORISED_NUMERIC.toString(), pos.getICCTag(0, 1, EmvTags.AMOUNT_AUTHORISED_NUMERIC.toString()).get("tlv"));
+        decodeData.put(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER.toString()).get("tlv"));
+        decodeData.put(EmvTags.AMOUNT_OTHER_NUMERIC.toString(), pos.getICCTag(0, 1, EmvTags.AMOUNT_OTHER_NUMERIC.toString()).get("tlv"));
+        decodeData.put(EmvTags.APPLICATION_EXPIRATION_DATE.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_EXPIRATION_DATE.toString()).get("tlv"));
+        decodeData.put(EmvTags.TRACK_2_EQUIVALENT_DATA.toString(), pos.getICCTag(0, 1, EmvTags.TRACK_2_EQUIVALENT_DATA.toString()).get("tlv"));
+        decodeData.put(EmvTags.CARDHOLDER_VERIFICATION_METHOD_RESULTS.toString(), pos.getICCTag(0, 1, EmvTags.CARDHOLDER_VERIFICATION_METHOD_RESULTS.toString()).get("tlv"));
+        decodeData.put(EmvTags.CARD_HOLDER_NAME.toString(), pos.getICCTag(0, 1, EmvTags.CARD_HOLDER_NAME.toString()).get("tlv"));
+        return decodeData;
+    }
+    private String getICCTags(){
+        StringBuilder builder = new StringBuilder();
+        try {
+            for(String s : tags){
+                String tag = pos.getICCTag(0,1,s).get("tlv");
+                builder.append(tag);            }
+            return builder.toString();
+        }catch (Exception e){
+            return  null;
+        }
+    }
+    private   String padLeft(String data, int length, char padChar) {
+        int remaining = length - data.length();
+
+        String newData = data;
+        for (int i = 0; i < remaining; i++)
+            newData = padChar + newData;
+        return newData;
+    }
+
 
 }

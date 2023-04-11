@@ -499,7 +499,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             content += "psamId: " + psamId + "\n";
             content += "NFCId: " + NFCId + "\n";
            // statusEditText.setText(content);
-            listener.onCompleteTransaction(new TransactionResponse());
+
         }
 
         @Override
