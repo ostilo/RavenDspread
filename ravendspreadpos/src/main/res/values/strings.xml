@@ -14,6 +14,7 @@
     <string name="msg_allowed_location_permission">Location permission is on</string>
     <string name="msg_not_allowed_loaction_permission">Location permission is forbidden, related map functions are not available</string>
     <string name="mposmacaddress">MPOSMACADDRESS</string>
+    <string name="loadedDevice">LOADED_SERVICE</string>
 
     <string name="updateEMV">update EMV</string>
     <!--POS CARD UPDATES MESSAGES -->

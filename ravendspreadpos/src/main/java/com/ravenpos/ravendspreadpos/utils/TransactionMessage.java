@@ -102,7 +102,7 @@ public class TransactionMessage implements Serializable {
     private String field18;
     @SerializedName("totalamount")
     @Expose
-    private Object totalamount;
+    private String totalamount;
     @SerializedName("rrn")
     @Expose
     private String rrn;
@@ -421,11 +421,11 @@ public class TransactionMessage implements Serializable {
         this.field18 = field18;
     }
 
-    public Object getTotalamount() {
+    public String getTotalamount() {
         return totalamount;
     }
 
-    public void setTotalamount(Object totalamount) {
+    public void setTotalamount(String totalamount) {
         this.totalamount = totalamount;
     }
 

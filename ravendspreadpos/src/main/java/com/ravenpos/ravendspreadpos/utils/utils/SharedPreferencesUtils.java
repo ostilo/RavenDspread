@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.Keep;
 
 import com.ravenpos.ravendspreadpos.BaseApplication;
+import com.ravenpos.ravendspreadpos.R;
 
 import java.util.Arrays;
 
@@ -174,4 +175,6 @@ public class SharedPreferencesUtils {
         mSharedPreferencesEditor.clear().apply();
 
     }
+
+
 }

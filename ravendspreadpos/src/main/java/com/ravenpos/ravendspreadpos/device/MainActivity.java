@@ -2772,8 +2772,8 @@ public class MainActivity extends BaseActivity implements TransactionListener {
 
     public void updateEmvConfig() {
 //      update emv config by bin files
-        String emvAppCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_app.bin", MainActivity.this));
-        String emvCapkCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_capk.bin", MainActivity.this));
+        String emvAppCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_appf.bin", MainActivity.this));
+        String emvCapkCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_capkf.bin", MainActivity.this));
         TRACE.d("emvAppCfg: " + emvAppCfg);
         TRACE.d("emvCapkCfg: " + emvCapkCfg);
         pos.updateEmvConfig(emvAppCfg, emvCapkCfg);

@@ -14,26 +14,25 @@ import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
-import android.nfc.Tag;
+
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.RemoteException;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.EditText;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -43,12 +42,13 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.chaos.view.PinView;
 import com.dspread.xpos.CQPOSService;
+import com.dspread.xpos.EmvAppTag;
 import com.dspread.xpos.QPOSService;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.Gson;
-import com.google.zxing.common.StringUtils;
 import com.pnsol.sdk.miura.emv.EmvTags;
 import com.ravenpos.ravendspreadpos.BaseActivity;
+import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.R;
 import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
@@ -59,11 +59,15 @@ import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 import com.ravenpos.ravendspreadpos.utils.TransactionMessage;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
 import com.ravenpos.ravendspreadpos.utils.utils.DUKPK2009_CBC;
+import com.ravenpos.ravendspreadpos.utils.utils.FileUtils;
 import com.ravenpos.ravendspreadpos.utils.utils.ParseASN1Util;
 import com.ravenpos.ravendspreadpos.utils.utils.QPOSUtil;
 import com.ravenpos.ravendspreadpos.utils.utils.SharedPreferencesUtils;
+import com.ravenpos.ravendspreadpos.utils.utils.TLVParser;
 import com.ravenpos.ravendspreadpos.utils.utils.TRACE;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -72,6 +76,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 
 import Decoder.BASE64Decoder;
 import Decoder.BASE64Encoder;
@@ -207,12 +212,23 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }else{
             flags = FLAG_UPDATE_CURRENT;
         }
+        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+          //  initAID_CAPK();
+        }
         initializeSheet(this);
         viewObserver();
         initIntent();
         initListener();
         message.postValue(getString(R.string.connecting_bt_pos));
+    }
 
+
+
+
+    public static boolean isUSBDetected(){
+        USBClass usb = new USBClass();
+        ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getINSTANCE());
+         if(deviceList == null) return  false;else return true;
     }
 
     private void initListener(){
@@ -231,15 +247,67 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 String selectedDevice = (String) items[item];
 
                 dialog.dismiss();
-
                 usbDevice = USBClass.getMdevices().get(selectedDevice);
                 open(QPOSService.CommunicationMode.USB_OTG_CDC_ACM);
+               // getInitTermConfig();
                 posType = RavenActivity.POS_TYPE.OTG;
                 pos.openUsb(usbDevice);
             }
         });
         AlertDialog alert = builder.create();
         alert.show();
+    }
+
+    private void getInitTermConfig(){
+       // pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
+        ArrayList<String> list = new ArrayList<String>();
+        list.add(EmvAppTag.Terminal_type+"22");
+        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
+        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
+        injectDevice();
+    }
+
+    private byte[] readLine(String Filename) {
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try {
+            android.content.ContextWrapper contextWrapper = new ContextWrapper(this);
+            AssetManager assetManager = contextWrapper.getAssets();
+            InputStream inputStream = assetManager.open(Filename);
+            byte[] data = new byte[512];
+            int current = 0;
+            while ((current = inputStream.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, current);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return  null;
+        }
+        return buffer.toByteArray();
+    }
+
+    public void updateEmvConfig() {
+       try {
+           String emvAppCfg = QPOSUtil.byteArray2Hex(readLine("emv_app.bin"));
+           String emvCapkCfg = QPOSUtil.byteArray2Hex(readLine("emv_capk.bin"));
+           pos.updateEmvConfig(emvAppCfg, emvCapkCfg);
+       }catch (Exception e){
+           Log.e("updateEmvConfig",e.getLocalizedMessage());
+       }
+    }
+
+    private  void injectDevice() {
+        try {
+            updateEmvConfig();
+        }catch (Exception e){
+            Log.e("injectDevice",e.getLocalizedMessage());
+        }
+    }
+    private void  loadClearMasterKeyA(String clearPinKey, String clearMasterKey){
+       // int keyIndex = getKeyIndex();
+       // pos.setMasterKey("1A4D672DCA6CB3351FD1B02B237AF9AE", "08D7B4FB629D0885", keyIndex);
+
     }
 
     private void initIntent() {
@@ -287,7 +355,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     public void onProcessingError(RuntimeException message, int errorcode) {
         try {
             if (!isFinishing()) {
-                onCompleteTransaction(getTransactionTesponse(message.getMessage(), errorcode));
+                onCompleteTransaction(message,errorcode);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -342,6 +410,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         msg.setField0("0200");
         msg.setField2(response.CardNo);
         msg.setField3("00"+accountType+"00");
+        msg.setTotalamount(String.valueOf(totalAmount.intValue()));
         msg.setField4(getField4(String.valueOf(totalAmount.intValue())+ "00"));
 
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MMddhhmmss");
@@ -399,7 +468,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         msg.setPort(port);
         msg.setHost(Ip);
         msg.setSsl(true);
-        msg.setTotalamount(totalAmount.intValue());
+        msg.setTotalamount(String.valueOf(totalAmount.intValue()));
         msg.setRrn(newPre);
         msg.setStan(newStan);
         msg.setTrack(response.Track2);
@@ -423,15 +492,17 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         msg.setAip(SharedPreferencesUtils.getInstance().getStringValue("82", ""));
 
+//        String seq =SharedPreferencesUtils.getInstance().getStringValue("5F34", "");
+//        if(!seq.equals("")){
+//
+//        }
         msg.setPanseqno(response.CardSequenceNumber);
 
         if(response.PinBlock != null){
             if(!response.PinBlock.equals("31393937")){
                 msg.setPinblock(response.PinBlock);
             }
-
         }
-
 
         msg.setClrpin(clearPinKey);
 
@@ -449,8 +520,18 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         ravenEmv.nibbsEmv = msg;
         String fullRes = new Gson().toJson(ravenEmv);
 
+        Intent intent = new Intent();
+        intent.putExtra(getString(R.string.data), response);
+        setResult(Activity.RESULT_OK, intent);
+    }
 
-
+    public void onCompleteTransaction(RuntimeException message, int errorcode) {
+        TransactionResponse response = getTransactionTesponse(message.getMessage(), errorcode);
+        RavenEmv ravenEmv = new RavenEmv();
+        response.TerminaID = terminalId;
+        response.totalAmoount = String.valueOf(totalAmount.intValue());
+        response.amount = String.valueOf(totalAmount.intValue());
+        String fullRes = new Gson().toJson(ravenEmv);
         Intent intent = new Intent();
         intent.putExtra(getString(R.string.data), response);
         setResult(Activity.RESULT_OK, intent);
@@ -927,6 +1008,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             } else if (transactionResult == QPOSService.TransactionResult.TRANS_TOKEN_INVALID) {
                 clearDisplay();
                 messageTextView.setText("TOKEN INVALID");
+            }else {
+                messageTextView.setText("FALL BACK");
+                onProcessingError(new RuntimeException("FALL BACK"),100);
             }
             dialog.findViewById(R.id.confirmButton).setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -938,9 +1022,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             amount = "";
             cashbackAmount = "";
             //Todo This is where transaction flow ends
-
-
-
         }
 
         @Override
@@ -1044,6 +1125,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onRequestOnlineProcess(final String tlv) {
             TRACE.d("onRequestOnlineProcess" + tlv);
+            TLV = tlv;
             tagList = getTags();
             ICCDATA = getICCTags();
             if (isPinCanceled) {
@@ -2334,9 +2416,10 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     }
     public  TransactionResponse showEmvTransResult() {
         TransactionResponse mResponse = new TransactionResponse();
+
         try {
             mResponse.amount = String.valueOf(totalAmountPrint);
-            mResponse.CardNo = readPan();
+        //    readPan();
             mResponse.IccData = ICCDATA;
                 if(pos.getICCTag(0,1,"4F") != null){
                     mResponse.CardOrg = pos.getICCTag(0,1,"4F").get("tlv");
@@ -2355,10 +2438,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             mResponse.CardHolderName = name;
         }
 
-        if(pos.getICCTag(0,1,"5F34") != null){
-            mResponse.CardSequenceNumber = pos.getICCTag(0,1,"5F34").get("tlv");
-        }
-
         if(pos.getICCTag(0,1,"9F12") != null){
             mResponse.CardType = pos.getICCTag(0,1,"9F12").get("tlv");
         }
@@ -2371,28 +2450,40 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         if(ID != null){
             mResponse.MacAddress = ID;
         }
+
+        mResponse.Track2 =   extractTag(EmvTags.TRACK_2_EQUIVALENT_DATA);
+        mResponse.CardNo =  extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER);
+        mResponse.CardSequenceNumber = padLeft(extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER_SEQUENCE_NUMBER),3, '0');
+
         StringBuilder builder = new StringBuilder();
         for(String s : tags){
-            String tag = pos.getICCTag(0,1,s).get("tlv");
+            List<com.ravenpos.ravendspreadpos.utils.utils.TLV> parse = TLVParser.parse(TLV);
+
+            //String tagR = pos.getICCTag(0,1,s).get("tlv");
+            String tag =  Objects.requireNonNull(TLVParser.searchTLV(parse, s)).value;
             if(tag != null){
-                builder.append(tag);
-                SharedPreferencesUtils.getInstance().setValue(tag, tag);
+                builder.append(s);
+               SharedPreferencesUtils.getInstance().setValue(s, tag.toUpperCase());
             }
         }
 
-        mResponse.Track2 = readTrack2();
+        //readTrack2();
         mResponse.responseCode = _responseCode;
         return mResponse;
     }
 
-    private String extractTag(Tag tag){
+
+    private String extractTag(com.pnsol.sdk.miura.emv.tlv.Tag tag){
         try {
             return pos.getTag(tagList.get(tag.toString())).get(0).getValue();
         }catch (Exception e){
             return "";
         }
     }
-    String[] tags = new String[]{"9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A", "5F34", "82", "9F1A", "9F03", "9F33", "9F34", "9F35"};
+    String[] tags = new String[]{
+             "9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A", "5F34", "82", "9F1A", "9F03", "9F33", "84", "9F34", "9F35", "9F41","9F12","4F"
+            // "9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A", "5F34", "82", "9F1A", "9F03", "9F33", "9F34", "9F35"
+    };
 
 
     private Hashtable<String,String> getTags() {
@@ -2407,6 +2498,18 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         decodeData.put(EmvTags.TRACK_2_EQUIVALENT_DATA.toString(), pos.getICCTag(0, 1, EmvTags.TRACK_2_EQUIVALENT_DATA.toString()).get("tlv"));
         decodeData.put(EmvTags.CARDHOLDER_VERIFICATION_METHOD_RESULTS.toString(), pos.getICCTag(0, 1, EmvTags.CARDHOLDER_VERIFICATION_METHOD_RESULTS.toString()).get("tlv"));
         decodeData.put(EmvTags.CARD_HOLDER_NAME.toString(), pos.getICCTag(0, 1, EmvTags.CARD_HOLDER_NAME.toString()).get("tlv"));
+
+
+//        decodeData.put(EmvTags.APPLICATION_CRYPTOGRAM.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_CRYPTOGRAM.toString()).get("tlv"));
+//        decodeData.put(EmvTags.CRYPTOGRAM_INFORMATION_DATA.toString(), pos.getICCTag(0, 1, EmvTags.CRYPTOGRAM_INFORMATION_DATA.toString()).get("tlv"));
+//        decodeData.put(EmvTags.ISSUER_APPLICATION_DATA.toString(), pos.getICCTag(0, 1, EmvTags.ISSUER_APPLICATION_DATA.toString()).get("tlv"));
+//        decodeData.put(EmvTags.UNPREDICTABLE_NUMBER.toString(), pos.getICCTag(0, 1, EmvTags.UNPREDICTABLE_NUMBER.toString()).get("tlv"));
+//        decodeData.put(EmvTags.APPLICATION_TRANSACTION_COUNTER.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_TRANSACTION_COUNTER.toString()).get("tlv"));
+//        decodeData.put(EmvTags.TERMINAL_VERIFICATION_RESULTS.toString(), pos.getICCTag(0, 1, EmvTags.TERMINAL_VERIFICATION_RESULTS.toString()).get("tlv"));
+//        decodeData.put(EmvTags.TRANSACTION_DATE.toString(), pos.getICCTag(0, 1, EmvTags.TRANSACTION_DATE.toString()).get("tlv"));
+
+        //TERMINAL_VERIFICATION_RESULTS
+
         return decodeData;
     }
     private String getICCTags(){
