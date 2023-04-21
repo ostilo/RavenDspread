@@ -27,6 +27,7 @@
 		    android:text="@string/confirm" />
 		
 		<Button
+			android:visibility="gone"
 		    android:id="@+id/bypassButton"
 		    android:layout_width="0dip"
 		    android:layout_height="wrap_content"

@@ -29,4 +29,5 @@ public class MySharedPreference {
         editor.clear().commit();
 
     }
+
 }

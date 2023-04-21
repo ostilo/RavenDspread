@@ -6,8 +6,6 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
 
-import com.google.android.material.snackbar.Snackbar;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -19,10 +17,8 @@ import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
+
 
 
 import com.ravenpos.ravendspreadpos.R;
@@ -54,9 +50,7 @@ public class WelcomeActivity extends AppCompatActivity implements View.OnClickLi
         normal_blu.setOnClickListener(this);
         other_blu.setOnClickListener(this);
         print.setOnClickListener(this);
-        bluetoothRelaPer();
-
-
+     //   bluetoothRelaPer();
     }
 
 

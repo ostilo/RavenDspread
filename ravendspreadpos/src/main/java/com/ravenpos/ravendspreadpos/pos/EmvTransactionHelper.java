@@ -6,6 +6,7 @@ import android.util.Log;
 
 import androidx.lifecycle.MutableLiveData;
 
+import com.ravenpos.ravendspreadpos.utils.DeviceType;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 import com.ravenpos.ravendspreadpos.utils.TransactionType;
 
@@ -14,7 +15,7 @@ import java.util.List;
 public class EmvTransactionHelper {
     private static MyPosListener myPosListener;
 
-    public static void startTransaction(final Activity activity, final String bluetoothAddress, final Double amount, MutableLiveData<String> listenerMutable, final TransactionListener listener){
+    public static void startTransaction(final Activity activity, DeviceType deviceTyp, final String bluetoothAddress, final Double amount, MutableLiveData<String> listenerMutable, final TransactionListener listener){
         if(myPosListener == null){
             listener.onProcessingError(new RuntimeException("Not yet initialized"), -100);
             return;
@@ -23,7 +24,7 @@ public class EmvTransactionHelper {
             @Override
             public void run() {
                 TransactionType finalTransactionType = TransactionType.PURCHASE;
-                myPosListener.startTransaction(activity,bluetoothAddress, amount, finalTransactionType, null, listenerMutable,new TransactionListener() {
+                myPosListener.startTransaction(activity, deviceTyp,bluetoothAddress, amount, finalTransactionType, null, listenerMutable,new TransactionListener() {
                     @Override
                     public void onProcessingError(final RuntimeException message, final int errorcode) {
                         activity.runOnUiThread(new Runnable() {
@@ -53,8 +54,8 @@ public class EmvTransactionHelper {
     }
 
 
-    public static void initialize(Context context) {
-        myPosListener = myPosListener != null ? myPosListener :  MyPosListener.initialize(context);
+    public static void initialize(Context context,DeviceType deviceType) {
+        myPosListener = myPosListener != null ? myPosListener :  MyPosListener.initialize(context,deviceType);
         MyPosListener myPosListene = myPosListener;
     }
 

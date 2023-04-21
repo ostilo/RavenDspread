@@ -1,92 +1,348 @@
-package com.ravenpos.ravendspreadpos.pos;
+package com.ravenpos.ravendspreadpos.device;
 
+import static android.app.PendingIntent.FLAG_IMMUTABLE;
+import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+
+import static com.ravenpos.ravendspreadpos.utils.StringUtils.getTransactionTesponse;
 
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.ContextWrapper;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+
+import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 
 import com.chaos.view.PinView;
 import com.dspread.xpos.CQPOSService;
+import com.dspread.xpos.EmvAppTag;
 import com.dspread.xpos.QPOSService;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.Gson;
 import com.pnsol.sdk.miura.emv.EmvTags;
-import com.pnsol.sdk.miura.emv.tlv.Tag;
+import com.ravenpos.ravendspreadpos.BaseActivity;
+import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.R;
-import com.ravenpos.ravendspreadpos.utils.DeviceType;
-import com.ravenpos.ravendspreadpos.utils.EmvCardData;
-import com.ravenpos.ravendspreadpos.utils.MyCallBackListener;
+import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
+import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
+import com.ravenpos.ravendspreadpos.utils.Constants;
+import com.ravenpos.ravendspreadpos.utils.MessagePacker;
+import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
-import com.ravenpos.ravendspreadpos.utils.TransactionType;
+import com.ravenpos.ravendspreadpos.utils.TransactionMessage;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
 import com.ravenpos.ravendspreadpos.utils.utils.DUKPK2009_CBC;
+import com.ravenpos.ravendspreadpos.utils.utils.FileUtils;
 import com.ravenpos.ravendspreadpos.utils.utils.ParseASN1Util;
 import com.ravenpos.ravendspreadpos.utils.utils.QPOSUtil;
+import com.ravenpos.ravendspreadpos.utils.utils.SharedPreferencesUtils;
+import com.ravenpos.ravendspreadpos.utils.utils.TLVParser;
 import com.ravenpos.ravendspreadpos.utils.utils.TRACE;
 
-import java.io.UnsupportedEncodingException;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 
 import Decoder.BASE64Decoder;
 import Decoder.BASE64Encoder;
 
-/**
- * Created by ADEOLU on 3/13/2018.
- */
-
-public class MyPosListener extends CQPOSService implements MyCallBackListener {
-    private static QPOSService pos;
-    private static TransactionListener listener;
-    private final String cashBackAmount = "";
+public class RavenActivity extends BaseActivity implements TransactionListener {
+    private MutableLiveData<String> message;
     private final String currencyCode = "566";
-    private Context context;
-    private boolean isPinCanceled = false;
-    private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
+    private ActivityRavenBinding binding;
 
-    private String deviceSignCert;
-    private String amount;
-    private String terminalTime;
-    private final int timeout = 30;
+    public QPOSService pos;
+    private UsbDevice usbDevice;
+    private Dialog dialog;
     private Hashtable<String, String> tagList;
-    private String PINBLOCK, KSN, CARDHOLDERNAME, ICCDATA, ID;
-    private EmvCardData emvCardData;
-    private static  MyPosListener myPosListener;
-    private TransactionType transactionType;
-    private TransactionResponse transactionResponse;
-    private POS_TYPE posType = POS_TYPE.BLUETOOTH;
+    private String verifySignatureCommand, pedvVerifySignatureCommand;
+    private String KB;
+    private boolean isInitKey;
+    private boolean isUpdateFw = false;
 
-    private MutableLiveData<String> messageCarrier;
     private String nfcLog = "";
-
+    private String pubModel = "";
+    private String amount = "";
+    private String cashbackAmount = "";
+    private String blueTootchAddress = "";
+    private String blueTitle;
+    private String title;
+    private boolean isPinCanceled = false;
+    private boolean isNormalBlu = false;//to judge if is normal bluetooth
+    private int type;
+    private String ICCDATA, ID, PINBLOCK, TLV;
+    private String _responseCode;
+    private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
+    private String deviceSignCert;
     private BottomSheetDialog pinDialog;
     private PinView txtUserPin;
 
-    private UsbDevice usbDevice;
+    private RavenActivity.POS_TYPE posType = RavenActivity.POS_TYPE.BLUETOOTH;
+    int flags = 0;
+    private enum POS_TYPE {
+        BLUETOOTH, AUDIO, UART, USB, OTG, BLUETOOTH_BLE
+    }
 
-    private Activity activity;
+    private Double totalAmount = 0.0;
+    public static Double totalAmountPrint = 0.0;
+    private String terminalId;
+    private String clearPinKey;
+    private String clearMasterKey;
+    private String clearSessionKey;
+    private String host;
+    private String port;
+    private String Ip;
+    private String Mid;
+    private String snKey;
+    private String businessName;
+
+    private String accountType;
+
+
+
+    private void clearDisplay() {
+        message.postValue("");
+    }
+
+    private void incompleteParameters() {
+        Intent intent = new Intent();
+        intent.putExtra(Constants.PRINTER_DATA_TRANSACTION_STATUS_CODE, "-1");
+        intent.putExtra(Constants.PRINTER_DATA_TRXN_STATUS_KEY, "Incomplete Parameters");
+        setResult(RESULT_OK, intent);
+        finish();
+    }
+    public static TransactionResponse getOnBackPressResponse(Double totalAmount) {
+        TransactionResponse response = new TransactionResponse();
+        response.responseCode = "407";
+        response.responseDescription = "Transaction could not complete";
+        response.amount = String.valueOf(totalAmount);
+        return response;
+    }
+
+    @Override
+    public void onBackPressed() {
+        onCompleteTransaction(getOnBackPressResponse(totalAmount));
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        binding = ActivityRavenBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        Intent intent = getIntent();
+        _responseCode = "00";
+        if (intent != null) {
+            totalAmount = intent.getDoubleExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, 0.0);
+            accountType = intent.getStringExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE);
+            terminalId = intent.getStringExtra(Constants.TERMINAL_ID);
+            clearPinKey = intent.getStringExtra(Constants.INTENT_CLEAR_PIN_KEY);
+            clearMasterKey = intent.getStringExtra(Constants.INTENT_CLEAR_MASTER_KEY);
+            port = intent.getStringExtra(Constants.INTENT_Port);
+            Ip = intent.getStringExtra(Constants.INTENT_IP);
+            businessName = intent.getStringExtra(Constants.INTENT_BUSINESS_NAME_KEY);
+            clearSessionKey = intent.getStringExtra(Constants.INTENT_CLEAR_SESSION_KEY);
+            totalAmountPrint = totalAmount;
+            if (!TextUtils.isEmpty(intent.getStringExtra(Constants.TERMINAL_ID))
+                    && !TextUtils.isEmpty(intent.getStringExtra(Constants.INTENT_CLEAR_MASTER_KEY))
+                    && !TextUtils.isEmpty(intent.getStringExtra(Constants.INTENT_CLEAR_PIN_KEY))
+                    && !TextUtils.isEmpty(intent.getStringExtra(Constants.INTENT_CLEAR_SESSION_KEY))
+                    && !TextUtils.isEmpty(intent.getStringExtra(Constants.INTENT_IP))
+                    && !TextUtils.isEmpty(intent.getStringExtra(Constants.INTENT_Port))
+                    && !TextUtils.isEmpty(String.valueOf(intent.getDoubleExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, 0.0)))
+                    && !TextUtils.isEmpty(intent.getStringExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE))
+            ) {
+                totalAmount = intent.getDoubleExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, 0.0);
+                accountType = intent.getStringExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE);
+                terminalId = intent.getStringExtra(Constants.TERMINAL_ID);
+                clearPinKey = intent.getStringExtra(Constants.INTENT_CLEAR_PIN_KEY);
+                clearMasterKey = intent.getStringExtra(Constants.INTENT_CLEAR_MASTER_KEY);
+                port = intent.getStringExtra(Constants.INTENT_Port);
+                Ip = intent.getStringExtra(Constants.INTENT_IP);
+                clearSessionKey = intent.getStringExtra(Constants.INTENT_CLEAR_SESSION_KEY);
+                Mid = intent.getStringExtra(Constants.INTENT_MID);
+                snKey = intent.getStringExtra(Constants.INTENT_SN);
+                this.amount = String.valueOf(totalAmount.intValue());
+                totalAmountPrint = totalAmount;
+            } else {
+                incompleteParameters();
+            }
+        } else {
+            incompleteParameters();
+        }
+      //  requestBlePermissions();
+        message = new MutableLiveData<>();
+        binding.spinKit.setImageResource(R.drawable.insert_card_one);
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+            flags = FLAG_IMMUTABLE;
+        }else{
+            flags = FLAG_UPDATE_CURRENT;
+        }
+        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+          //  initAID_CAPK();
+        }
+        initializeSheet(this);
+        viewObserver();
+        initIntent();
+        initListener();
+        message.postValue(getString(R.string.connecting_bt_pos));
+    }
+
+
+
+
+    public static boolean isUSBDetected(){
+        USBClass usb = new USBClass();
+        ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getINSTANCE());
+         if(deviceList == null) return  false;else return true;
+    }
+
+    private void initListener(){
+        USBClass usb = new USBClass();
+        ArrayList<String> deviceList = usb.GetUSBDevices(getBaseContext());
+        if (deviceList == null) {
+            Toast.makeText(RavenActivity.this, "No Permission", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final CharSequence[] items = deviceList.toArray(new CharSequence[deviceList.size()]);
+        AlertDialog.Builder builder = new AlertDialog.Builder(RavenActivity.this);
+        builder.setTitle("Select an OTG Reader");
+        builder.setSingleChoiceItems(items, -1, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int item) {
+                String selectedDevice = (String) items[item];
+
+                dialog.dismiss();
+                usbDevice = USBClass.getMdevices().get(selectedDevice);
+                open(QPOSService.CommunicationMode.USB_OTG_CDC_ACM);
+               // getInitTermConfig();
+                posType = RavenActivity.POS_TYPE.OTG;
+                pos.openUsb(usbDevice);
+            }
+        });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    private void getInitTermConfig(){
+       // pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
+        ArrayList<String> list = new ArrayList<String>();
+        list.add(EmvAppTag.Terminal_type+"22");
+        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
+        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
+        injectDevice();
+    }
+
+    private byte[] readLine(String Filename) {
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try {
+            android.content.ContextWrapper contextWrapper = new ContextWrapper(this);
+            AssetManager assetManager = contextWrapper.getAssets();
+            InputStream inputStream = assetManager.open(Filename);
+            byte[] data = new byte[512];
+            int current = 0;
+            while ((current = inputStream.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, current);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return  null;
+        }
+        return buffer.toByteArray();
+    }
+
+    public void updateEmvConfig() {
+       try {
+           String emvAppCfg = QPOSUtil.byteArray2Hex(readLine("emv_app.bin"));
+           String emvCapkCfg = QPOSUtil.byteArray2Hex(readLine("emv_capk.bin"));
+           pos.updateEmvConfig(emvAppCfg, emvCapkCfg);
+       }catch (Exception e){
+           Log.e("updateEmvConfig",e.getLocalizedMessage());
+       }
+    }
+
+    private  void injectDevice() {
+        try {
+            updateEmvConfig();
+        }catch (Exception e){
+            Log.e("injectDevice",e.getLocalizedMessage());
+        }
+    }
+    private void  loadClearMasterKeyA(String clearPinKey, String clearMasterKey){
+       // int keyIndex = getKeyIndex();
+       // pos.setMasterKey("1A4D672DCA6CB3351FD1B02B237AF9AE", "08D7B4FB629D0885", keyIndex);
+
+    }
+
+    private void initIntent() {
+        Intent intent = getIntent();
+        type = intent.getIntExtra("connect_type", 3);
+        switch (type) {
+            case 3://normal bluetooth
+                this.isNormalBlu = true;
+                title = getString(R.string.title_blu);
+                break;
+            case 4://Ble
+                isNormalBlu = false;
+                title = getString(R.string.title_ble);
+                break;
+        }
+        setTitle(title);
+    }
+
+    private void viewObserver() {
+        message.observe(this, s -> {
+            if (!TextUtils.isEmpty(s)) {
+                showResult(binding.posViewUpdate, s);
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+            initListener();
+        }
+    }
+
     private void initializeSheet(Context context){
         pinDialog = new BottomSheetDialog(context);
         pinDialog.setContentView(R.layout.transaction_pinview);
@@ -94,66 +350,354 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         assert txtUserPin != null;
     }
 
-    public void startTransaction(Activity activity, DeviceType deviceTyp, String bluetoothAddress, Double amount, TransactionType transactionType, TransactionResponse transactionResponse, MutableLiveData<String> listenerMutable, TransactionListener vlistener){
-        this.amount = String.valueOf(amount.intValue());
-        this.transactionType = transactionType;
-        this.transactionResponse = transactionResponse;
-        listener = vlistener;
-        messageCarrier = listenerMutable;
-        this.activity = activity;
-        if(deviceTyp == DeviceType.BLUETOOTH){
-            pos.connectBluetoothDevice(true, timeout, bluetoothAddress);
-        }else {
-            usbDevice = USBClass.getMdevices().get(bluetoothAddress);
-            posType = POS_TYPE.OTG;
-            pos.openUsb(usbDevice);
+
+    @Override
+    public void onProcessingError(RuntimeException message, int errorcode) {
+        try {
+            if (!isFinishing()) {
+                onCompleteTransaction(message,errorcode);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
-    private MyPosListener(Context context,DeviceType deviceType){
-        if(deviceType == DeviceType.BLUETOOTH){
-            pos = QPOSService.getInstance(QPOSService.CommunicationMode.BLUETOOTH);
-        }else {
-            pos = QPOSService.getInstance(QPOSService.CommunicationMode.USB_OTG_CDC_ACM);
+
+    public static String getField4(String amountStr) {
+        int index = amountStr.indexOf(".");
+        if (amountStr.substring(index + 1, amountStr.length()).length() < 2) {
+            amountStr = amountStr + "0";
+        }
+        amountStr = amountStr.replace(".", "");
+        int amtlen = amountStr.length();
+        StringBuilder amtBuilder = new StringBuilder();
+        if (amtlen < 12) {
+            for (int i = 0; i < (12 - amtlen); i++) {
+                amtBuilder.append("0");
+            }
+        }
+        amtBuilder.append(amountStr);
+        amountStr = amtBuilder.toString();
+        return amountStr;
+    }
+
+    public static String getServiceCode(String track2Data) {
+        int indexOfToken = track2Data.indexOf("D");
+        int indexOfServiceCode = indexOfToken + 5;
+        int lengthOfServiceCode = 3;
+        return track2Data.substring(indexOfServiceCode, indexOfServiceCode + lengthOfServiceCode);
+    }
+
+    public static String getExpiryDate(String track2Data) {
+        int indexOfToken = track2Data.indexOf("D");
+        int indexOfExpiryDate = indexOfToken + 1;
+        int lengthOfExpiryDate = 4;
+        return track2Data.substring(indexOfExpiryDate, indexOfExpiryDate + lengthOfExpiryDate);
+    }
+    @Override
+    public void onCompleteTransaction(TransactionResponse response) {
+
+        RavenEmv ravenEmv = new RavenEmv();
+        response.TerminaID = terminalId;
+        response.totalAmoount = String.valueOf(totalAmount.intValue());
+        response.amount = String.valueOf(totalAmount.intValue());
+        ravenEmv.dataModel = response;
+        String fullPay = new Gson().toJson(response);
+        showResult(binding.posViewUpdate, "");
+        Log.e("TRANS DONE", new Gson().toJson(response));
+        Gson gson = new Gson();
+
+        TransactionMessage msg = new TransactionMessage();
+        msg.setField0("0200");
+        msg.setField2(response.CardNo);
+        msg.setField3("00"+accountType+"00");
+        msg.setTotalamount(String.valueOf(totalAmount.intValue()));
+        msg.setField4(getField4(String.valueOf(totalAmount.intValue())+ "00"));
+
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MMddhhmmss");
+        String datetime = simpleDateFormat.format(new Date());
+        msg.setField7(datetime);
+
+
+        SimpleDateFormat dateFormatStan = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+        //simpleDateFormat = new SimpleDateFormat("hhmmss");
+        String stan = dateFormatStan.format(new Date());
+        String newStan = stan.substring(stan.length() - 6);
+
+
+        msg.setField11(newStan);
+        msg.setField12(newStan);
+
+        simpleDateFormat = new SimpleDateFormat("MMdd");
+        String date = simpleDateFormat.format(new Date());
+        msg.setField13(date);
+
+        msg.setField14(getExpiryDate(response.Track2));
+        msg.setField18("5251");
+        msg.setField22("051");
+        msg.setField23(response.CardSequenceNumber);
+        msg.setField25("00");
+        msg.setField26("06");//12;
+        msg.setField28("D00000000");
+        msg.setField32(response.Track2.substring(0, 6));
+        msg.setField35(response.Track2);
+
+        // SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+        ///String pre = dateFormat.format(new Date());
+        String newPre = stan.substring(stan.length() - 12);
+
+        msg.setField37(newPre);
+        msg.setField40(getServiceCode(response.Track2));
+        msg.setField41(response.TerminaID);
+        msg.setField42(Mid);
+        //  msg.setField42("2030LA000490601");
+        //  msg.setField43("NETOP BUSINESS SYSTEMS LA           LANG");
+        msg.setField43(businessName);
+        msg.setField49("566");
+        if(response.PinBlock != null){
+            if (!response.PinBlock.isEmpty()) {
+                if(!response.PinBlock.equals("31393937")){
+                    msg.setField52(response.PinBlock);
+                }
+            }
+        }
+        msg.setField55(response.IccData);
+
+        msg.setField123("510101511344101");
+
+        msg.setClrsesskey(clearSessionKey);
+        msg.setPort(port);
+        msg.setHost(Ip);
+        msg.setSsl(true);
+        msg.setTotalamount(String.valueOf(totalAmount.intValue()));
+        msg.setRrn(newPre);
+        msg.setStan(newStan);
+        msg.setTrack(response.Track2);
+        msg.setExpirydate(getExpiryDate(response.Track2));
+        msg.setPan(response.CardNo);
+        msg.setTid(terminalId);
+        msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
+        msg.setUnpredictable(SharedPreferencesUtils.getInstance().getStringValue("9F37", ""));
+        msg.setCapabilities(SharedPreferencesUtils.getInstance().getStringValue("9F33", ""));
+        msg.setCryptogram(SharedPreferencesUtils.getInstance().getStringValue("9F26", ""));
+        msg.setTvr(SharedPreferencesUtils.getInstance().getStringValue("95", ""));
+
+        msg.setIad(SharedPreferencesUtils.getInstance().getStringValue("9F10", ""));
+
+        msg.setCvm(SharedPreferencesUtils.getInstance().getStringValue("9F34", ""));
+
+        msg.setCip("");
+        msg.setAmount(String.valueOf(totalAmount.intValue()));
+
+        msg.setAtc(SharedPreferencesUtils.getInstance().getStringValue("9F36", ""));
+
+        msg.setAip(SharedPreferencesUtils.getInstance().getStringValue("82", ""));
+
+//        String seq =SharedPreferencesUtils.getInstance().getStringValue("5F34", "");
+//        if(!seq.equals("")){
+//
+//        }
+        msg.setPanseqno(response.CardSequenceNumber);
+
+        if(response.PinBlock != null){
+            if(!response.PinBlock.equals("31393937")){
+                msg.setPinblock(response.PinBlock);
+            }
+        }
+
+        msg.setClrpin(clearPinKey);
+
+        msg.setAccount(getAccountTypeString(accountType));
+
+        msg.setSn(snKey);
+
+        msg.setMid(Mid);
+
+        msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
+        msg.setField128(MessagePacker.generateHashData(msg));
+
+        String msgToIso = new Gson().toJson(msg);
+
+        ravenEmv.nibbsEmv = msg;
+        String fullRes = new Gson().toJson(ravenEmv);
+
+        Intent intent = new Intent();
+        intent.putExtra(getString(R.string.data), response);
+        setResult(Activity.RESULT_OK, intent);
+    }
+
+    public void onCompleteTransaction(RuntimeException message, int errorcode) {
+        TransactionResponse response = getTransactionTesponse(message.getMessage(), errorcode);
+        RavenEmv ravenEmv = new RavenEmv();
+        response.TerminaID = terminalId;
+        response.totalAmoount = String.valueOf(totalAmount.intValue());
+        response.amount = String.valueOf(totalAmount.intValue());
+        String fullRes = new Gson().toJson(ravenEmv);
+        Intent intent = new Intent();
+        intent.putExtra(getString(R.string.data), response);
+        setResult(Activity.RESULT_OK, intent);
+    }
+
+    private  String getAccountTypeString(String code){
+        String codeMsg = "Savings";
+        switch (code){
+            case "00":
+                codeMsg =  "Default";
+                break;
+            case "10":
+                codeMsg =  "Savings";
+                break;
+            case "20":
+                codeMsg =  "Current";
+                break;
+            case "30":
+                codeMsg =  "Credit";
+                break;
+        }
+
+        return  codeMsg;
+    }
+
+    /**
+     * open and init bluetooth
+     *
+     * @param mode
+     */
+    private void open(QPOSService.CommunicationMode mode) {
+        TRACE.d("open");
+            MyQposClass listener = new MyQposClass();
+        pos = QPOSService.getInstance(mode);
+        if (pos == null) {
+            message.postValue("CommunicationMode unknow");
+            return;
+        }
+        if (mode == QPOSService.CommunicationMode.USB_OTG_CDC_ACM) {
             pos.setUsbSerialDriver(QPOSService.UsbOTGDriver.CDCACM);
         }
-        pos.setConext(context);
-        pos.initListener(new Handler(Looper.myLooper()), this);
-        this.context = context;
-        initializeSheet(context);
-    }
-    public static MyPosListener initialize(Context context,DeviceType deviceType){
-        return myPosListener == null ? new MyPosListener(context,deviceType) : myPosListener;
+        pos.setConext(RavenActivity.this);
+        //init handler
+        Handler handler = new Handler(Looper.myLooper());
+        pos.initListener(handler, listener);
+        String sdkVersion = pos.getSdkVersion();
     }
 
+    /**
+     * close device
+     */
+    private void close() {
+        TRACE.d("close");
+        if (pos == null) {
+            return;
+        } else if (posType == RavenActivity.POS_TYPE.AUDIO) {
+            pos.closeAudio();
+        } else if (posType == RavenActivity.POS_TYPE.BLUETOOTH) {
+            pos.disconnectBT();
+//			pos.disConnectBtPos();
+        } else if (posType == RavenActivity.POS_TYPE.BLUETOOTH_BLE) {
+            pos.disconnectBLE();
+        } else if (posType == POS_TYPE.UART) {
+            pos.closeUart();
+        } else if (posType == RavenActivity.POS_TYPE.USB) {
+            pos.closeUsb();
+        } else if (posType == RavenActivity.POS_TYPE.OTG) {
+            pos.closeUsb();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        TRACE.d("onDestroy");
+        if (pos != null) {
+            close();
+            pos = null;
+        }
+    }
+
+    private void devicePermissionRequest(UsbManager mManager, UsbDevice usbDevice) {
+        PendingIntent mPermissionIntent = PendingIntent.getBroadcast(RavenActivity.this, 0, new Intent(
+                "com.android.example.USB_PERMISSION"), flags);
+        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+        registerReceiver(mUsbReceiver, filter);
+        mManager.requestPermission(usbDevice, mPermissionIntent);
+    }
+
+    private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
 
         @Override
-        public void onRequestWaitingUser() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (ACTION_USB_PERMISSION.equals(action)) {
+                synchronized (this) {
+                    UsbDevice device = (UsbDevice) intent
+                            .getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    if (intent.getBooleanExtra(
+                            UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        if (device != null) {
+                            // call method to set up device communication
+                            TRACE.i("usb" + "permission granted for device "
+                                    + device);
+                            pos.setPermissionDevice(device);
+                        }
+                    } else {
+                        TRACE.i("usb" + "permission denied for device " + device);
+
+                    }
+                    RavenActivity.this.unregisterReceiver(mUsbReceiver);
+                }
+            }
+        }
+    };
+
+    private List getPermissionDeviceList() {
+        UsbManager mManager = (UsbManager) RavenActivity.this.getSystemService(Context.USB_SERVICE);
+        List deviceList = new ArrayList<UsbDevice>();
+        // check for existing devices
+        for (UsbDevice device : mManager.getDeviceList().values()) {
+            deviceList.add(device);
+        }
+        return deviceList;
+    }
+    private String terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
+    private QPOSService.TransactionType transactionType = QPOSService.TransactionType.PAYMENT;
+
+    /**
+     * @author qianmengChen
+     * @ClassName: MyPosListener
+     * @date: 2016-11-10 6:35:06pm
+     */
+    class MyQposClass extends CQPOSService {
+
+        @Override
+        public void onRequestWaitingUser() {//wait user to insert/swipe/tap card
             TRACE.d("onRequestWaitingUser()");
-            messageCarrier.postValue(context.getString(R.string.waiting_for_card));
+          //  dismissDialog();
+            message.postValue(getString(R.string.waiting_for_card));
         }
 
         @Override
         public void onDoTradeResult(QPOSService.DoTradeResult result, Hashtable<String, String> decodeData) {
             TRACE.d("(DoTradeResult result, Hashtable<String, String> decodeData) " + result.toString() + TRACE.NEW_LINE + "decodeData:" + decodeData);
+           // dismissDialog();
             String cardNo = "";
             if (result == QPOSService.DoTradeResult.NONE) {
-                messageCarrier.postValue(context.getString(R.string.no_card_detected));
+                message.postValue(getString(R.string.no_card_detected));
             } else if (result == QPOSService.DoTradeResult.TRY_ANOTHER_INTERFACE) {
-                messageCarrier.postValue(context.getString(R.string.try_another_interface));
+                message.postValue(getString(R.string.try_another_interface));
             } else if (result == QPOSService.DoTradeResult.ICC) {
-                //messageCarrier.postValue(context.getString(R.string.icc_card_inserted));
+                message.postValue(getString(R.string.icc_card_inserted));
                 TRACE.d("EMV ICC Start");
                 pos.doEmvApp(QPOSService.EmvOption.START);
             } else if (result == QPOSService.DoTradeResult.NOT_ICC) {
-                messageCarrier.postValue(context.getString(R.string.card_inserted));
+                message.postValue(getString(R.string.card_inserted));
             } else if (result == QPOSService.DoTradeResult.BAD_SWIPE) {
-                messageCarrier.postValue(context.getString(R.string.bad_swipe));
+                message.postValue(getString(R.string.bad_swipe));
             } else if (result == QPOSService.DoTradeResult.CARD_NOT_SUPPORT) {
-                messageCarrier.postValue("GPO NOT SUPPORT");
+                message.postValue("GPO NOT SUPPORT");
             } else if (result == QPOSService.DoTradeResult.PLS_SEE_PHONE) {
-                messageCarrier.postValue("PLS SEE PHONE");
+                message.postValue("PLS SEE PHONE");
             } else if (result == QPOSService.DoTradeResult.MCR) {//Magnetic card
-                String content = context.getString(R.string.card_swiped);
+                String content = getString(R.string.card_swiped);
                 String formatID = decodeData.get("formatID");
                 if (formatID.equals("31") || formatID.equals("40") || formatID.equals("37") || formatID.equals("17") || formatID.equals("11") || formatID.equals("10")) {
                     String maskedPAN = decodeData.get("maskedPAN");
@@ -167,15 +711,15 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                     String macblock = decodeData.get("macblock");
                     String activateCode = decodeData.get("activateCode");
                     String trackRandomNumber = decodeData.get("trackRandomNumber");
-                    content += formatID + "\n";
-                    content +=maskedPAN + "\n";
-                    content +=  expiryDate + "\n";
-                    content += cardHolderName + "\n";
-                    content += serviceCode + "\n";
+                    content += getString(R.string.format_id) + " " + formatID + "\n";
+                    content += getString(R.string.masked_pan) + " " + maskedPAN + "\n";
+                    content += getString(R.string.expiry_date) + " " + expiryDate + "\n";
+                    content += getString(R.string.cardholder_name) + " " + cardHolderName + "\n";
+                    content += getString(R.string.service_code) + " " + serviceCode + "\n";
                     content += "trackblock: " + trackblock + "\n";
                     content += "psamId: " + psamId + "\n";
                     content += "posId: " + posId + "\n";
-                    content +=  pinblock + "\n";
+                    content += getString(R.string.pinBlock) + " " + pinblock + "\n";
                     content += "macblock: " + macblock + "\n";
                     content += "activateCode: " + activateCode + "\n";
                     content += "trackRandomNumber: " + trackRandomNumber + "\n";
@@ -213,23 +757,23 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                     if (orderID != null && !"".equals(orderID)) {
                         content += "orderID:" + orderID;
                     }
-                    content += formatID + "\n";
-                    content += maskedPAN + "\n";
-                    content += expiryDate + "\n";
-                    content += cardHolderName + "\n";
+                    content += getString(R.string.format_id) + " " + formatID + "\n";
+                    content += getString(R.string.masked_pan) + " " + maskedPAN + "\n";
+                    content += getString(R.string.expiry_date) + " " + expiryDate + "\n";
+                    content += getString(R.string.cardholder_name) + " " + cardHolderName + "\n";
 //					content += getString(R.string.ksn) + " " + ksn + "\n";
-                    content +=  "\n";
-                    content += trackksn + "\n";
-                    content +=  serviceCode + "\n";
-                    content += track1Length + "\n";
-                    content += track2Length + "\n";
-                    content +=track3Length + "\n";
-                    content +=  encTracks + "\n";
-                    content +=  encTrack1 + "\n";
-                    content +=encTrack2 + "\n";
-                    content +=  encTrack3 + "\n";
-                    content +=  partialTrack + "\n";
-                    content += pinBlock + "\n";
+                    content += getString(R.string.pinKsn) + " " + pinKsn + "\n";
+                    content += getString(R.string.trackksn) + " " + trackksn + "\n";
+                    content += getString(R.string.service_code) + " " + serviceCode + "\n";
+                    content += getString(R.string.track_1_length) + " " + track1Length + "\n";
+                    content += getString(R.string.track_2_length) + " " + track2Length + "\n";
+                    content += getString(R.string.track_3_length) + " " + track3Length + "\n";
+                    content += getString(R.string.encrypted_tracks) + " " + encTracks + "\n";
+                    content += getString(R.string.encrypted_track_1) + " " + encTrack1 + "\n";
+                    content += getString(R.string.encrypted_track_2) + " " + encTrack2 + "\n";
+                    content += getString(R.string.encrypted_track_3) + " " + encTrack3 + "\n";
+                    content += getString(R.string.partial_track) + " " + partialTrack + "\n";
+                    content += getString(R.string.pinBlock) + " " + pinBlock + "\n";
                     content += "encPAN: " + encPAN + "\n";
                     content += "trackRandomNumber: " + trackRandomNumber + "\n";
                     content += "pinRandomNumber:" + " " + pinRandomNumber + "\n";
@@ -248,10 +792,11 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                         content += "PIN:" + " " + s + "\n";
                     }
                 }
-                messageCarrier.postValue(content);
-            } else if ((result == QPOSService.DoTradeResult.NFC_ONLINE) || (result == QPOSService.DoTradeResult.NFC_OFFLINE)) {
+                message.postValue(content);
+            }
+            else if ((result == QPOSService.DoTradeResult.NFC_ONLINE) || (result == QPOSService.DoTradeResult.NFC_OFFLINE)) {
                 nfcLog = decodeData.get("nfcLog");
-                String content = context.getString(R.string.tap_card);
+                String content = getString(R.string.tap_card);
                 String formatID = decodeData.get("formatID");
                 if (formatID.equals("31") || formatID.equals("40")
                         || formatID.equals("37") || formatID.equals("17")
@@ -269,21 +814,21 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                     String trackRandomNumber = decodeData
                             .get("trackRandomNumber");
 
-                    content +=formatID
+                    content += getString(R.string.format_id) + " " + formatID
                             + "\n";
-                    content +=  maskedPAN
+                    content += getString(R.string.masked_pan) + " " + maskedPAN
                             + "\n";
-                    content +=" "
+                    content += getString(R.string.expiry_date) + " "
                             + expiryDate + "\n";
-                    content += " "
+                    content += getString(R.string.cardholder_name) + " "
                             + cardHolderName + "\n";
 
-                    content +=  " "
+                    content += getString(R.string.service_code) + " "
                             + serviceCode + "\n";
                     content += "trackblock: " + trackblock + "\n";
                     content += "psamId: " + psamId + "\n";
                     content += "posId: " + posId + "\n";
-                    content +=  pinblock
+                    content += getString(R.string.pinBlock) + " " + pinblock
                             + "\n";
                     content += "macblock: " + macblock + "\n";
                     content += "activateCode: " + activateCode + "\n";
@@ -310,35 +855,36 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                             .get("trackRandomNumber");
                     String pinRandomNumber = decodeData.get("pinRandomNumber");
 
-                    content += formatID
+                    content += getString(R.string.format_id) + " " + formatID
                             + "\n";
-                    content += maskedPAN
+                    content += getString(R.string.masked_pan) + " " + maskedPAN
                             + "\n";
-                    content += " "
+                    content += getString(R.string.expiry_date) + " "
                             + expiryDate + "\n";
-                    content += " "
+                    content += getString(R.string.cardholder_name) + " "
                             + cardHolderName + "\n";
-                    content += pinKsn + "\n";
-                    content += trackksn
+                    content += getString(R.string.pinKsn) + " " + pinKsn + "\n";
+                    content += getString(R.string.trackksn) + " " + trackksn
                             + "\n";
-                    content += " "
+                    content += getString(R.string.service_code) + " "
                             + serviceCode + "\n";
-                    content += " "
+                    content += getString(R.string.track_1_length) + " "
                             + track1Length + "\n";
-                    content +=  " "
+                    content += getString(R.string.track_2_length) + " "
                             + track2Length + "\n";
-                    content += " "
+                    content += getString(R.string.track_3_length) + " "
                             + track3Length + "\n";
-                    content += " "
+                    content += getString(R.string.encrypted_tracks) + " "
                             + encTracks + "\n";
-                    content +=  " "
+                    content += getString(R.string.encrypted_track_1) + " "
                             + encTrack1 + "\n";
-                    content +=  " "
+                    content += getString(R.string.encrypted_track_2) + " "
                             + encTrack2 + "\n";
-                    content += " "
+                    content += getString(R.string.encrypted_track_3) + " "
                             + encTrack3 + "\n";
-                    content +=partialTrack + "\n";
-                    content += pinBlock
+                    content += getString(R.string.partial_track) + " "
+                            + partialTrack + "\n";
+                    content += getString(R.string.pinBlock) + " " + pinBlock
                             + "\n";
                     content += "encPAN: " + encPAN + "\n";
                     content += "trackRandomNumber: " + trackRandomNumber + "\n";
@@ -348,13 +894,12 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                 }
                 // pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,1,1,"5F20") // get plaintext or ciphertext 5F20 tag
                 // pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,1,2,"5F205F24") // get plaintext or ciphertext 5F20 and 5F24 tag
-
-               // messageCarrier.postValue(content);
-               // sendMsg(8003);
+                message.postValue(content);
+              //  sendMsg(8003);
             } else if ((result == QPOSService.DoTradeResult.NFC_DECLINED)) {
-                messageCarrier.postValue(context.getString(R.string.transaction_declined));
+                message.postValue(getString(R.string.transaction_declined));
             } else if (result == QPOSService.DoTradeResult.NO_RESPONSE) {
-                messageCarrier.postValue(context. getString(R.string.card_no_response));
+                message.postValue(getString(R.string.card_no_response));
             }
         }
 
@@ -378,24 +923,24 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             String pciHardwareVersion = posInfoData.get("PCI_hardwareVersion") == null ? ""
                     : posInfoData.get("PCI_hardwareVersion");
             String content = "";
-            content += bootloaderVersion + "\n";
-            content += firmwareVersion + "\n";
-            content +=isUsbConnected + "\n";
-            content += isCharging + "\n";
-            content += batteryLevel + "\n";
+            content += getString(R.string.firmware_version) + firmwareVersion + "\n";
+            content += getString(R.string.usb) + isUsbConnected + "\n";
+            content += getString(R.string.charge) + isCharging + "\n";
+//			if (batteryPercentage==null || "".equals(batteryPercentage)) {
+            content += getString(R.string.battery_level) + batteryLevel + "\n";
 //			}else {
-            content += batteryPercentage + "\n";
+            content += getString(R.string.battery_percentage) + batteryPercentage + "\n";
 //			}
-            content +=  hardwareVersion + "\n";
+            content += getString(R.string.hardware_version) + hardwareVersion + "\n";
             content += "SUB : " + SUB + "\n";
-            content += isSupportedTrack1 + "\n";
-            content += isSupportedTrack2 + "\n";
-            content +=  isSupportedTrack3 + "\n";
+            content += getString(R.string.track_1_supported) + isSupportedTrack1 + "\n";
+            content += getString(R.string.track_2_supported) + isSupportedTrack2 + "\n";
+            content += getString(R.string.track_3_supported) + isSupportedTrack3 + "\n";
             content += "PCI FirmwareVresion:" + pciFirmwareVersion + "\n";
             content += "PCI HardwareVersion:" + pciHardwareVersion + "\n";
-            //statusEditText.setText(content);
-            listener.onCompleteTransaction(new TransactionResponse());
+            message.postValue(content);
         }
+
         /**
          * @see QPOSService.QPOSServiceListener#onRequestTransactionResult(QPOSService.TransactionResult)
          */
@@ -403,88 +948,106 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         public void onRequestTransactionResult(QPOSService.TransactionResult transactionResult) {
             TRACE.d("onRequestTransactionResult()" + transactionResult.toString());
             if (transactionResult == QPOSService.TransactionResult.CARD_REMOVED) {
-             //   clearDisplay();
+                clearDisplay();
             }
-
+            dismissDialog();
+            dialog = new Dialog(RavenActivity.this);
+            dialog.setContentView(R.layout.alert_dialog);
+            dialog.setTitle(R.string.transaction_result);
+            TextView messageTextView = (TextView) dialog.findViewById(R.id.messageTextView);
             if (transactionResult == QPOSService.TransactionResult.APPROVED) {
                 TRACE.d("TransactionResult.APPROVED");
-               // String message = context32.getString(R.string.transaction_approved) + "\n" + context.getString(R.string.amount) + ": $" + amount + "\n";
-//                if (!cashBackAmount.equals("")) {
-//                    message += ": INR" + cashBackAmount;
-//                }
-
-                //TODO Processing
-                        messageCarrier.postValue("Transaction Processing...");
-                      listener.onCompleteTransaction(new TransactionResponse());
+                String message = getString(R.string.transaction_approved) + "\n" + getString(R.string.amount) + ": $" + amount + "\n";
+                if (!cashbackAmount.equals("")) {
+                    message += getString(R.string.cashback_amount) + ": INR" + cashbackAmount;
+                }
+                messageTextView.setText(message);
 //                    deviceShowDisplay("APPROVED");
             } else if (transactionResult == QPOSService.TransactionResult.TERMINATED) {
-             //   clearDisplay();
-                messageCarrier.postValue(context. getString(R.string.transaction_terminated));
+                clearDisplay();
+                messageTextView.setText(getString(R.string.transaction_terminated));
             } else if (transactionResult == QPOSService.TransactionResult.DECLINED) {
-                messageCarrier.postValue(context.getString(R.string.transaction_declined));
-                listener.onProcessingError(new RuntimeException(context.getString(R.string.transaction_declined)),101);
+                messageTextView.setText(getString(R.string.transaction_declined));
 //                    deviceShowDisplay("DECLINED");
             } else if (transactionResult == QPOSService.TransactionResult.CANCEL) {
-             //   clearDisplay();
-                messageCarrier.postValue(context.getString(R.string.transaction_cancel));
+                clearDisplay();
+                messageTextView.setText(getString(R.string.transaction_cancel));
             } else if (transactionResult == QPOSService.TransactionResult.CAPK_FAIL) {
-                messageCarrier.postValue(context.getString(R.string.transaction_capk_fail));
+                messageTextView.setText(getString(R.string.transaction_capk_fail));
             } else if (transactionResult == QPOSService.TransactionResult.NOT_ICC) {
-                messageCarrier.postValue(context.getString(R.string.transaction_not_icc));
+                messageTextView.setText(getString(R.string.transaction_not_icc));
             } else if (transactionResult == QPOSService.TransactionResult.SELECT_APP_FAIL) {
-                messageCarrier.postValue(context.getString(R.string.transaction_app_fail));
+                messageTextView.setText(getString(R.string.transaction_app_fail));
             } else if (transactionResult == QPOSService.TransactionResult.DEVICE_ERROR) {
-                messageCarrier.postValue(context.getString(R.string.transaction_device_error));
+                messageTextView.setText(getString(R.string.transaction_device_error));
             } else if (transactionResult == QPOSService.TransactionResult.TRADE_LOG_FULL) {
-                messageCarrier.postValue("pls clear the trace log and then to begin do trade");
-                messageCarrier.postValue("the trade log has fulled!pls clear the trade log!");
+                message.postValue("pls clear the trace log and then to begin do trade");
+                messageTextView.setText("the trade log has fulled!pls clear the trade log!");
             } else if (transactionResult == QPOSService.TransactionResult.CARD_NOT_SUPPORTED) {
-                messageCarrier.postValue(context.getString(R.string.card_not_supported));
+                messageTextView.setText(getString(R.string.card_not_supported));
             } else if (transactionResult == QPOSService.TransactionResult.MISSING_MANDATORY_DATA) {
-                messageCarrier.postValue(context.getString(R.string.missing_mandatory_data));
+                messageTextView.setText(getString(R.string.missing_mandatory_data));
             } else if (transactionResult == QPOSService.TransactionResult.CARD_BLOCKED_OR_NO_EMV_APPS) {
-                messageCarrier.postValue(context.getString(R.string.card_blocked_or_no_evm_apps));
+                messageTextView.setText(getString(R.string.card_blocked_or_no_evm_apps));
             } else if (transactionResult == QPOSService.TransactionResult.INVALID_ICC_DATA) {
-                messageCarrier.postValue(context.getString(R.string.invalid_icc_data));
+                messageTextView.setText(getString(R.string.invalid_icc_data));
             } else if (transactionResult == QPOSService.TransactionResult.FALLBACK) {
-                messageCarrier.postValue("trans fallback");
+                messageTextView.setText("trans fallback");
             } else if (transactionResult == QPOSService.TransactionResult.NFC_TERMINATED) {
-              //  clearDisplay();
-                messageCarrier.postValue("NFC Terminated");
+                clearDisplay();
+                messageTextView.setText("NFC Terminated");
             } else if (transactionResult == QPOSService.TransactionResult.CARD_REMOVED) {
-               // clearDisplay();
-                messageCarrier.postValue("CARD REMOVED");
+                clearDisplay();
+                messageTextView.setText("CARD REMOVED");
             } else if (transactionResult == QPOSService.TransactionResult.CONTACTLESS_TRANSACTION_NOT_ALLOW) {
-               // clearDisplay();
-                messageCarrier.postValue("TRANS NOT ALLOW");
+                clearDisplay();
+                messageTextView.setText("TRANS NOT ALLOW");
             } else if (transactionResult == QPOSService.TransactionResult.CARD_BLOCKED) {
-               // clearDisplay();
-                messageCarrier.postValue("CARD BLOCKED");
+                clearDisplay();
+                messageTextView.setText("CARD BLOCKED");
             } else if (transactionResult == QPOSService.TransactionResult.TRANS_TOKEN_INVALID) {
-              //  clearDisplay();
-                messageCarrier.postValue("TOKEN INVALID");
+                clearDisplay();
+                messageTextView.setText("TOKEN INVALID");
+            }else {
+                messageTextView.setText("FALL BACK");
+                onProcessingError(new RuntimeException("FALL BACK"),100);
             }
+            dialog.findViewById(R.id.confirmButton).setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    dismissDialog();
+                }
+            });
+           // dialog.show();
+            amount = "";
+            cashbackAmount = "";
+            //Todo This is where transaction flow ends
         }
 
         @Override
         public void onRequestBatchData(String tlv) {
             TRACE.d("ICC trade finished");
-            String content = context. getString(R.string.batch_data);
+            String content = getString(R.string.batch_data);
             TRACE.d("onRequestBatchData(String tlv):" + tlv);
+            content += tlv;
+            TLV = tlv;
+            message.postValue(getString(R.string.connecting_bt_pos));
+          //  message.postValue(content);
             pos.getQposId();
         }
 
         @Override
         public void onRequestTransactionLog(String tlv) {
             TRACE.d("onRequestTransactionLog(String tlv):" + tlv);
-
-            String content = context.getString(R.string.transaction_log);
+          dismissDialog();
+            String content = getString(R.string.transaction_log);
             content += tlv;
-           // statusEditText.setText(content);
+            message.postValue(content);
         }
 
         @Override
         public void onQposIdResult(Hashtable<String, String> posIdTable) {
+            ID = posIdTable.get("posId") == null ? "" : posIdTable.get("posId");
             TRACE.w("onQposIdResult():" + posIdTable.toString());
             String posId = posIdTable.get("posId") == null ? "" : posIdTable.get("posId");
             String csn = posIdTable.get("csn") == null ? "" : posIdTable.get("csn");
@@ -493,26 +1056,61 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             String NFCId = posIdTable.get("nfcID") == null ? "" : posIdTable
                     .get("nfcID");
             String content = "";
-            content +=  posId + "\n";
+            content += getString(R.string.posId) + posId + "\n";
             content += "csn: " + csn + "\n";
             content += "conn: " + pos.getBluetoothState() + "\n";
             content += "psamId: " + psamId + "\n";
             content += "NFCId: " + NFCId + "\n";
-           // statusEditText.setText(content);
-
+            message.postValue(getString(R.string.defaultloading));
+            TransactionResponse  transactionResponse =   showEmvTransResult();
+            onCompleteTransaction(transactionResponse);
         }
 
         @Override
         public void onRequestSelectEmvApp(ArrayList<String> appList) {
-            String s = "";
+            TRACE.d("onRequestSelectEmvApp():" + appList.toString());
+            TRACE.d("Please select App -- S，emv card config");
+           dismissDialog();
+            dialog = new Dialog(RavenActivity.this);
+            dialog.setContentView(R.layout.emv_app_dialog);
+            dialog.setTitle(R.string.please_select_app);
+            String[] appNameList = new String[appList.size()];
+            for (int i = 0; i < appNameList.length; ++i) {
+
+                appNameList[i] = appList.get(i);
+            }
+         /*
+            appListView = (ListView) dialog.findViewById(R.id.appList);
+            appListView.setAdapter(new ArrayAdapter<String>(MainActivity.this, android.R.layout.simple_list_item_1, appNameList));
+            appListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+                    pos.selectEmvApp(position);
+                    TRACE.d("select emv app position = " + position);
+                    dismissDialog();
+                }
+
+            });
+            dialog.findViewById(R.id.cancelButton).setOnClickListener(new View.OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    pos.cancelSelectEmvApp();
+                    dismissDialog();
+                }
+            });
+            dialog.show();
+          */
+
         }
 
         @Override
         public void onRequestSetAmount() {
             TRACE.d("input amount -- S");
             TRACE.d("onRequestSetAmount()");
-            pos.setAmount(amount.concat("00"), cashBackAmount, currencyCode, QPOSService.TransactionType.PAYMENT);
-            pos.setAmountIcon("N");
+            pos.setAmount(amount, cashbackAmount, "566", QPOSService.TransactionType.PAYMENT);
         }
 
         /**
@@ -527,49 +1125,92 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onRequestOnlineProcess(final String tlv) {
             TRACE.d("onRequestOnlineProcess" + tlv);
+            TLV = tlv;
             tagList = getTags();
             ICCDATA = getICCTags();
-            getPinBlockAndKsn(tlv);
-
+            if (isPinCanceled) {
+                pos.sendOnlineProcessResult(null);
+            }
+            else {
+//				String str = "5A0A6214672500000000056F5F24032307315F25031307085F2A0201565F34010182027C008407A00000033301018E0C000000000000000002031F009505088004E0009A031406179C01009F02060000000000019F03060000000000009F0702AB009F080200209F0902008C9F0D05D86004A8009F0E0500109800009F0F05D86804F8009F101307010103A02000010A010000000000CE0BCE899F1A0201569F1E0838333230314943439F21031826509F2608881E2E4151E527899F2701809F3303E0F8C89F34030203009F3501229F3602008E9F37042120A7189F4104000000015A0A6214672500000000056F5F24032307315F25031307085F2A0201565F34010182027C008407A00000033301018E0C000000000000000002031F00";
+//				str = "9F26088930C9018CAEBCD69F2701809F101307010103A02802010A0100000000007EF350299F370415B4E5829F360202179505000004E0009A031504169C01009F02060000000010005F2A02015682027C009F1A0201569F03060000000000009F330360D8C89F34030203009F3501229F1E0838333230314943438408A0000003330101019F090200209F410400000001";
+                String str = "8A023030";//Currently the default value,
+                // should be assigned to the server to return data,
+                // the data format is TLV
+                pos.sendOnlineProcessResult(str);//Script notification/55domain/ICCDATA
+            }
+            dismissDialog();
+            dialog = new Dialog(RavenActivity.this);
+            dialog.setContentView(R.layout.alert_dialog);
+            dialog.setTitle(R.string.request_data_to_server);
             Hashtable<String, String> decodeData = pos.anlysEmvIccData(tlv);
             TRACE.d("anlysEmvIccData(tlv):" + decodeData.toString());
 
+            message.postValue(getString(R.string.connecting_bt_pos));
+
             if (isPinCanceled) {
-                pos.sendOnlineProcessResult(null);
+                ((TextView) dialog.findViewById(R.id.messageTextView))
+                        .setText(R.string.replied_failed);
             } else {
-                pos.sendOnlineProcessResult("8A023030");
-              //  pos.sendOnlineProcessResult("8A023030" + tlv);
+                ((TextView) dialog.findViewById(R.id.messageTextView))
+                        .setText(R.string.replied_success);
             }
-//            pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,0,1,"5F20") // get plaintext or ciphertext tag
-//            pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,0,2,"5F205F24") // get plaintext or ciphertext 5F20 and 5F24 tag
+            try {
+//                    analyData(tlv);// analy tlv ,get the tag you need
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            dialog.findViewById(R.id.confirmButton).setOnClickListener(
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            if (isPinCanceled) {
+                                pos.sendOnlineProcessResult(null);
+                            }
+                            else {
+//									String str = "5A0A6214672500000000056F5F24032307315F25031307085F2A0201565F34010182027C008407A00000033301018E0C000000000000000002031F009505088004E0009A031406179C01009F02060000000000019F03060000000000009F0702AB009F080200209F0902008C9F0D05D86004A8009F0E0500109800009F0F05D86804F8009F101307010103A02000010A010000000000CE0BCE899F1A0201569F1E0838333230314943439F21031826509F2608881E2E4151E527899F2701809F3303E0F8C89F34030203009F3501229F3602008E9F37042120A7189F4104000000015A0A6214672500000000056F5F24032307315F25031307085F2A0201565F34010182027C008407A00000033301018E0C000000000000000002031F00";
+//									str = "9F26088930C9018CAEBCD69F2701809F101307010103A02802010A0100000000007EF350299F370415B4E5829F360202179505000004E0009A031504169C01009F02060000000010005F2A02015682027C009F1A0201569F03060000000000009F330360D8C89F34030203009F3501229F1E0838333230314943438408A0000003330101019F090200209F410400000001";
+                                String str = "8A023030";//Currently the default value,
+                                // should be assigned to the server to return data,
+                                // the data format is TLV
+                                pos.sendOnlineProcessResult(str);//Script notification/55domain/ICCDATA
+
+                            }
+                            //dismissDialog();
+                        }
+                    });
+          //  dialog.show();
         }
 
         @Override
         public void onRequestTime() {
             TRACE.d("onRequestTime");
+            String terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
             pos.sendTime(terminalTime);
+            message.postValue(getString(R.string.request_terminal_time) + " " + terminalTime);
         }
 
         @Override
         public void onRequestDisplay(QPOSService.Display displayMsg) {
             TRACE.d("onRequestDisplay(Display displayMsg):" + displayMsg.toString());
+            dismissDialog();
             String msg = "";
             if (displayMsg == QPOSService.Display.CLEAR_DISPLAY_MSG) {
                 msg = "";
             } else if (displayMsg == QPOSService.Display.MSR_DATA_READY) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                AlertDialog.Builder builder = new AlertDialog.Builder(RavenActivity.this);
                 builder.setTitle("Audio");
                 builder.setMessage("Success,Contine ready");
                 builder.setPositiveButton("Confirm", null);
                 builder.show();
             } else if (displayMsg == QPOSService.Display.PLEASE_WAIT) {
-                msg = context .getString(R.string.wait);
+                msg = getString(R.string.wait);
             } else if (displayMsg == QPOSService.Display.REMOVE_CARD) {
-                msg = context .getString(R.string.remove_card);
+                msg = getString(R.string.remove_card);
             } else if (displayMsg == QPOSService.Display.TRY_ANOTHER_INTERFACE) {
-                msg = context .getString(R.string.try_another_interface);
+                msg = getString(R.string.try_another_interface);
             } else if (displayMsg == QPOSService.Display.PROCESSING) {
-                msg = context .getString(R.string.processing);
+                msg = getString(R.string.processing);
 
             } else if (displayMsg == QPOSService.Display.INPUT_PIN_ING) {
                 msg = "please input pin on pos";
@@ -582,18 +1223,16 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             } else if (displayMsg == QPOSService.Display.CARD_REMOVED) {
                 msg = "card removed";
             }
-            //TODO here -> Processsing
-            messageCarrier.postValue(msg);
+            message.postValue(msg);
         }
 
         @Override
         public void onRequestFinalConfirm() {
             TRACE.d("onRequestFinalConfirm() ");
             TRACE.d("onRequestFinalConfirm - S");
-           /*
             dismissDialog();
             if (!isPinCanceled) {
-                dialog = new Dialog(MainActivity.this);
+                dialog = new Dialog(RavenActivity.this);
                 dialog.setContentView(R.layout.confirm_dialog);
                 dialog.setTitle(getString(R.string.confirm_amount));
 
@@ -620,91 +1259,108 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             } else {
                 pos.finalConfirm(false);
             }
-            */
         }
 
         @Override
         public void onRequestNoQposDetected() {
             TRACE.d("onRequestNoQposDetected()");
-            listener.onProcessingError(new RuntimeException("Could not connect to the device"), 507);
+            dismissDialog();
+            message.postValue(getString(R.string.no_device_detected));
+            onProcessingError(new RuntimeException(getString(R.string.no_device_detected)),100);
         }
 
         @Override
         public void onRequestQposConnected() {
             TRACE.d("onRequestQposConnected()");
-            startEmvTransaction();
-            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+          //  Toast.makeText(RavenActivity.this, "onRequestQposConnected", Toast.LENGTH_LONG).show();
+            dismissDialog();
+          //  long use_time = new Date().getTime() - start_time;
+            // statusEditText.setText(getString(R.string.device_plugged));
+        //    message.postValue(getString(R.string.device_plugged) + "--" + getResources().getString(R.string.used) + QPOSUtil.formatLongToTimeStr(use_time, RavenActivity.this));
+            if (posType == RavenActivity.POS_TYPE.BLUETOOTH || posType == RavenActivity.POS_TYPE.BLUETOOTH_BLE) {
+                setTitle(title + "(" + blueTitle.substring(0, 6) + "..." + blueTitle.substring(blueTitle.length() - 3) + ")");
+            } else {
+                setTitle("Device connect");
+            }
+            if (ActivityCompat.checkSelfPermission(RavenActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     != PERMISSION_GRANTED) {
                 //申请权限
-               // ActivityCompat.requestPermissions(context, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
+                ActivityCompat.requestPermissions(RavenActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
             }
+          //  int keyIdex = getKeyIndex();
+            pos.doTrade(30);//start do trade
+
         }
 
         @Override
         public void onRequestQposDisconnected() {
-                TRACE.d("onRequestQposDisconnected()");
-
+            //dismissDialog();
+            setTitle(title);
+            TRACE.d("onRequestQposDisconnected()");
+            message.postValue(getString(R.string.device_unplugged));
+            onProcessingError(new RuntimeException(getString(R.string.device_unplugged)),100);
         }
 
         @Override
         public void onError(QPOSService.Error errorState) {
-            TRACE.d("onError" + errorState.toString());
 
-            String errorMessage = "";
+            TRACE.d("onError" + errorState.toString());
+           // dismissDialog();
             if (errorState == QPOSService.Error.CMD_NOT_AVAILABLE) {
-                errorMessage = context.getString(R.string.command_not_available);
+                message.postValue(getString(R.string.command_not_available));
             } else if (errorState == QPOSService.Error.TIMEOUT) {
-                errorMessage  = (context.getString(R.string.device_no_response));
+                message.postValue(getString(R.string.device_no_response));
             } else if (errorState == QPOSService.Error.DEVICE_RESET) {
-                errorMessage  = (context.getString(R.string.device_reset));
+                message.postValue(getString(R.string.device_reset));
             } else if (errorState == QPOSService.Error.UNKNOWN) {
-                errorMessage  = (context.getString(R.string.unknown_error));
+                message.postValue(getString(R.string.unknown_error));
             } else if (errorState == QPOSService.Error.DEVICE_BUSY) {
-                errorMessage  = (context.getString(R.string.device_busy));
+                message.postValue(getString(R.string.device_busy));
             } else if (errorState == QPOSService.Error.INPUT_OUT_OF_RANGE) {
-                errorMessage  = (context.getString(R.string.out_of_range));
+                message.postValue(getString(R.string.out_of_range));
             } else if (errorState == QPOSService.Error.INPUT_INVALID_FORMAT) {
-                errorMessage  = (context.getString(R.string.invalid_format));
+                message.postValue(getString(R.string.invalid_format));
             } else if (errorState == QPOSService.Error.INPUT_ZERO_VALUES) {
-                errorMessage  = (context.getString(R.string.zero_values));
+                message.postValue(getString(R.string.zero_values));
             } else if (errorState == QPOSService.Error.INPUT_INVALID) {
-                errorMessage  = (context.getString(R.string.input_invalid));
+                message.postValue(getString(R.string.input_invalid));
             } else if (errorState == QPOSService.Error.CASHBACK_NOT_SUPPORTED) {
-                errorMessage  = (context.getString(R.string.cashback_not_supported));
+                message.postValue(getString(R.string.cashback_not_supported));
             } else if (errorState == QPOSService.Error.CRC_ERROR) {
-                errorMessage  = (context.getString(R.string.crc_error));
+                message.postValue(getString(R.string.crc_error));
             } else if (errorState == QPOSService.Error.COMM_ERROR) {
-                errorMessage  = (context.getString(R.string.comm_error));
+                message.postValue(getString(R.string.comm_error));
             } else if (errorState == QPOSService.Error.MAC_ERROR) {
-                errorMessage  = (context.getString(R.string.mac_error));
+                message.postValue(getString(R.string.mac_error));
             } else if (errorState == QPOSService.Error.APP_SELECT_TIMEOUT) {
-                errorMessage  = (context.getString(R.string.app_select_timeout_error));
+                message.postValue(getString(R.string.app_select_timeout_error));
             } else if (errorState == QPOSService.Error.CMD_TIMEOUT) {
-                errorMessage  = (context.getString(R.string.cmd_timeout));
+                message.postValue(getString(R.string.cmd_timeout));
             } else if (errorState == QPOSService.Error.ICC_ONLINE_TIMEOUT) {
                 if (pos == null) {
                     return;
                 }
                 pos.resetPosStatus();
-              //  messageCarrier.postValue(context. getString(R.string.device_reset));
+                message.postValue(getString(R.string.device_reset));
             }
-            listener.onProcessingError(new RuntimeException(errorMessage),1001);
+            onProcessingError(new RuntimeException("Oops!, An error occured"),100);
         }
+
         @Override
         public void onReturnReversalData(String tlv) {
-            String content = context. getString(R.string.reversal_data);
+            String content = getString(R.string.reversal_data);
             content += tlv;
             TRACE.d("onReturnReversalData(): " + tlv);
-            //statusEditText.setText(content);
+            message.postValue(content);
         }
 
         @Override
         public void onReturnupdateKeyByTR_31Result(boolean result, String keyType) {
             super.onReturnupdateKeyByTR_31Result(result, keyType);
             if (result) {
-                //statusEditText.setText("send TR31 key success! The keyType is " + keyType);
+                message.postValue("send TR31 key success! The keyType is " + keyType);
             } else {
-             //   statusEditText.setText("send TR31 key fail");
+                message.postValue("send TR31 key fail");
             }
         }
 
@@ -747,13 +1403,10 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             String pinBlock = result.get("pinBlock");
             String pinKsn = result.get("pinKsn");
             String content = "get pin result\n";
-            content +=  pinKsn + "\n";
-            content +=  pinBlock + "\n";
-           // statusEditText.setText(content);
+            content += getString(R.string.pinKsn) + " " + pinKsn + "\n";
+            content += getString(R.string.pinBlock) + " " + pinBlock + "\n";
+            message.postValue(content);
             TRACE.i(content);
-
-            emvCardData = prepareTagsForOnlineProcess(ID);
-            processRequestOnline(emvCardData);
         }
 
         @Override
@@ -783,13 +1436,13 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             } else {
                 content = "set the sleep time failed.";
             }
-          //  statusEditText.setText(content);
+            message.postValue(content);
         }
 
         @Override
         public void onGetCardNoResult(String cardNo) {
             TRACE.d("onGetCardNoResult(String cardNo):" + cardNo);
-           // statusEditText.setText("cardNo: " + cardNo);
+            message.postValue("cardNo: " + cardNo);
         }
 
         @Override
@@ -798,7 +1451,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             if (calMac != null && !"".equals(calMac)) {
                 calMac = QPOSUtil.byteArray2Hex(calMac.getBytes());
             }
-           // statusEditText.setText("calMac: " + calMac);
+            message.postValue("calMac: " + calMac);
             TRACE.d("calMac_result: calMac=> e: " + calMac);
         }
 
@@ -811,65 +1464,99 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         public void onRequestUpdateWorkKeyResult(QPOSService.UpdateInformationResult result) {
             TRACE.d("onRequestUpdateWorkKeyResult(UpdateInformationResult result):" + result);
             if (result == QPOSService.UpdateInformationResult.UPDATE_SUCCESS) {
-               // statusEditText.setText("update work key success");
+                message.postValue("update work key success");
             } else if (result == QPOSService.UpdateInformationResult.UPDATE_FAIL) {
-               // statusEditText.setText("update work key fail");
+                message.postValue("update work key fail");
             } else if (result == QPOSService.UpdateInformationResult.UPDATE_PACKET_VEFIRY_ERROR) {
-              //  statusEditText.setText("update work key packet vefiry error");
+                message.postValue("update work key packet vefiry error");
             } else if (result == QPOSService.UpdateInformationResult.UPDATE_PACKET_LEN_ERROR) {
-              //  statusEditText.setText("update work key packet len error");
+                message.postValue("update work key packet len error");
             }
         }
 
         @Override
         public void onReturnCustomConfigResult(boolean isSuccess, String result) {
             TRACE.d("onReturnCustomConfigResult(boolean isSuccess, String result):" + isSuccess + TRACE.NEW_LINE + result);
-          //  statusEditText.setText("result: " + isSuccess + "\ndata: " + result);
+            message.postValue("result: " + isSuccess + "\ndata: " + result);
         }
 
         @Override
         public void onRequestSetPin() {
             TRACE.i("onRequestSetPin()");
-            messageCarrier.postValue(context. getString(R.string.enter_pin));
-            activity.runOnUiThread(new Runnable() {
+
+           // pinDialog.show();
+            txtUserPin.addTextChangedListener(new TextWatcher() {
                 @Override
-                public void run() {
-                    pinDialog.show();
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
 
-                    txtUserPin.addTextChangedListener(new TextWatcher() {
-                        @Override
-                        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                }
 
-                        }
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String pin = s.toString();
+                    if (pin.length() == 4) {
+                        pos.sendPin(pin);
+                        pinDialog.dismiss();
+                        txtUserPin.setText("");
+                    }
+                }
 
-                        @Override
-                        public void onTextChanged(CharSequence s, int start, int before, int count) {
-                            String pin = s.toString();
-                            if (pin.length() == 4) {
-                                pos.sendPin(pin);
-                                pinDialog.dismiss();
-                                txtUserPin.setText("");
-                            }
-                        }
+                @Override
+                public void afterTextChanged(Editable s) {
 
-                        @Override
-                        public void afterTextChanged(Editable s) {
-
-                        }
-                    });
                 }
             });
 
-            /*
-            isPinCanceled = true;
+
+            dialog = new Dialog(RavenActivity.this);
+            dialog.setContentView(R.layout.pin_dialog);
+            dialog.setTitle(getString(R.string.enter_pin));
+            dialog.findViewById(R.id.confirmButton).setOnClickListener(new View.OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    String pin = ((EditText) dialog.findViewById(R.id.pinEditText)).getText().toString();
+                    if (pin.length() >= 4 && pin.length() <= 12) {
+//                        if (pin.equals("000000")) {
+//                            pos.sendEncryptPin("5516422217375116");
+//
+//                        } else {
+//                            pos.sendPin(pin);
+//                        }
+                        pos.sendPin(pin);
+                         dismissDialog();
+                    } else {
+                        Toast.makeText(RavenActivity.this, "The length just can input 4 - 12 digits", Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+            dialog.findViewById(R.id.bypassButton).setOnClickListener(new View.OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+//					pos.bypassPin();
+                    pos.sendPin("");
+
+                 dismissDialog();
+                }
+            });
+            dialog.findViewById(R.id.cancelButton).setOnClickListener(new View.OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    isPinCanceled = true;
                     pos.cancelPin();
-             */
+                    dismissDialog();
+                    onProcessingError(new RuntimeException("PIN Cancelled"),100);
+                }
+            });
+           dialog.show();
         }
 
         @Override
         public void onReturnSetMasterKeyResult(boolean isSuccess) {
             TRACE.d("onReturnSetMasterKeyResult(boolean isSuccess) : " + isSuccess);
-          //  statusEditText.setText("result: " + isSuccess);
+            message.postValue("result: " + isSuccess);
         }
 
         @Override
@@ -880,31 +1567,31 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             for (HashMap.Entry<Integer, String> entry : batchAPDUResult.entrySet()) {
                 sb.append("[" + entry.getKey() + "]: " + entry.getValue() + "\n");
             }
-         //   statusEditText.setText("\n" + sb.toString());
+            message.postValue("\n" + sb.toString());
         }
 
         @Override
         public void onBluetoothBondFailed() {
             TRACE.d("onBluetoothBondFailed()");
-            //statusEditText.setText("bond failed");
+            message.postValue("bond failed");
         }
 
         @Override
         public void onBluetoothBondTimeout() {
             TRACE.d("onBluetoothBondTimeout()");
-          //  statusEditText.setText("bond timeout");
+            message.postValue("bond timeout");
         }
 
         @Override
         public void onBluetoothBonded() {
             TRACE.d("onBluetoothBonded()");
-          //  statusEditText.setText("bond success");
+            message.postValue("bond success");
         }
 
         @Override
         public void onBluetoothBonding() {
             TRACE.d("onBluetoothBonding()");
-           // statusEditText.setText("bonding .....");
+            message.postValue("bonding .....");
         }
 
         @Override
@@ -913,7 +1600,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             String s = "serviceCode: " + result.get("serviceCode");
             s += "\n";
             s += "trackblock: " + result.get("trackblock");
-          //  statusEditText.setText(s);
+            message.postValue(s);
         }
 
         @Override
@@ -924,13 +1611,13 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onUpdatePosFirmwareResult(QPOSService.UpdateInformationResult arg0) {
             TRACE.d("onUpdatePosFirmwareResult(UpdateInformationResult arg0):" + arg0.toString());
-         //   isUpdateFw = false;
-            if (arg0 != QPOSService.UpdateInformationResult.UPDATE_SUCCESS) {
-              //  updateThread.concelSelf();
-            } else {
-             //   mhipStatus.setText("");
-            }
-          //  statusEditText.setText("onUpdatePosFirmwareResult" + arg0.toString());
+            isUpdateFw = false;
+//            if (arg0 != QPOSService.UpdateInformationResult.UPDATE_SUCCESS) {
+//                updateThread.concelSelf();
+//            } else {
+//                mhipStatus.setText("");
+//            }
+//            statusEditText.setText("onUpdatePosFirmwareResult" + arg0.toString());
         }
 
         @Override
@@ -957,7 +1644,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onPinKey_TDES_Result(String arg0) {
             TRACE.d("onPinKey_TDES_Result(String arg0):" + arg0);
-           // statusEditText.setText("result:" + arg0);
+            message.postValue("result:" + arg0);
         }
 
         @Override
@@ -983,29 +1670,29 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onReturnNFCApduResult(boolean arg0, String arg1, int arg2) {
             TRACE.d("onReturnNFCApduResult(boolean arg0, String arg1, int arg2):" + arg0 + TRACE.NEW_LINE + arg1 + TRACE.NEW_LINE + arg2);
-         //   statusEditText.setText("onReturnNFCApduResult(boolean arg0, String arg1, int arg2):" + arg0 + TRACE.NEW_LINE + arg1 + TRACE.NEW_LINE + arg2);
+            message.postValue("onReturnNFCApduResult(boolean arg0, String arg1, int arg2):" + arg0 + TRACE.NEW_LINE + arg1 + TRACE.NEW_LINE + arg2);
         }
 
         @Override
         public void onReturnPowerOffNFCResult(boolean arg0) {
             TRACE.d(" onReturnPowerOffNFCResult(boolean arg0) :" + arg0);
-            //statusEditText.setText(" onReturnPowerOffNFCResult(boolean arg0) :" + arg0);
+            message.postValue(" onReturnPowerOffNFCResult(boolean arg0) :" + arg0);
         }
 
         @Override
         public void onReturnPowerOnNFCResult(boolean arg0, String arg1, String arg2, int arg3) {
             TRACE.d("onReturnPowerOnNFCResult(boolean arg0, String arg1, String arg2, int arg3):" + arg0 + TRACE.NEW_LINE + arg1 + TRACE.NEW_LINE + arg2 + TRACE.NEW_LINE + arg3);
-           // statusEditText.setText("onReturnPowerOnNFCResult(boolean arg0, String arg1, String arg2, int arg3):" + arg0 + TRACE.NEW_LINE + arg1 + TRACE.NEW_LINE + arg2 + TRACE.NEW_LINE + arg3);
+            message.postValue("onReturnPowerOnNFCResult(boolean arg0, String arg1, String arg2, int arg3):" + arg0 + TRACE.NEW_LINE + arg1 + TRACE.NEW_LINE + arg2 + TRACE.NEW_LINE + arg3);
         }
 
         @Override
         public void onCbcMacResult(String result) {
             TRACE.d("onCbcMacResult(String result):" + result);
-            if (result == null || "".equals(result)) {
-             //   statusEditText.setText("cbc_mac:false");
-            } else {
-               // statusEditText.setText("cbc_mac: " + result);
-            }
+//            if (result == null || "".equals(result)) {
+//                statusEditText.setText("cbc_mac:false");
+//            } else {
+//                statusEditText.setText("cbc_mac: " + result);
+//            }
         }
 
         @Override
@@ -1027,9 +1714,9 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         public void onQposIsCardExist(boolean cardIsExist) {
             TRACE.d("onQposIsCardExist(boolean cardIsExist):" + cardIsExist);
             if (cardIsExist) {
-              //  statusEditText.setText("cardIsExist:" + cardIsExist);
+                message.postValue("cardIsExist:" + cardIsExist);
             } else {
-               // statusEditText.setText("cardIsExist:" + cardIsExist);
+                message.postValue("cardIsExist:" + cardIsExist);
             }
         }
 
@@ -1070,11 +1757,11 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onSetBuzzerResult(boolean arg0) {
             TRACE.d("onSetBuzzerResult(boolean arg0):" + arg0);
-            if (arg0) {
-               // statusEditText.setText("Set buzzer success");
-            } else {
-               // statusEditText.setText("Set buzzer failed");
-            }
+//            if (arg0) {
+//                statusEditText.setText("Set buzzer success");
+//            } else {
+//                statusEditText.setText("Set buzzer failed");
+//            }
         }
 
         @Override
@@ -1095,21 +1782,21 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onSetManagementKey(boolean arg0) {
             TRACE.d("onSetManagementKey(boolean arg0):" + arg0);
-            if (arg0) {
-              //  statusEditText.setText("Set master key success");
-            } else {
-             //   statusEditText.setText("Set master key failed");
-            }
+//            if (arg0) {
+//                statusEditText.setText("Set master key success");
+//            } else {
+//                statusEditText.setText("Set master key failed");
+//            }
         }
 
         @Override
         public void onReturnUpdateIPEKResult(boolean arg0) {
             TRACE.d("onReturnUpdateIPEKResult(boolean arg0):" + arg0);
-            if (arg0) {
-              //  statusEditText.setText("update IPEK success");
-            } else {
-              //  statusEditText.setText("update IPEK fail");
-            }
+//            if (arg0) {
+//                statusEditText.setText("update IPEK success");
+//            } else {
+//                statusEditText.setText("update IPEK fail");
+//            }
         }
 
         @Override
@@ -1129,10 +1816,35 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
 
         @Override
         public void onDeviceFound(BluetoothDevice arg0) {
+
             if (arg0 != null && arg0.getName() != null) {
+              //  proceedToPayment();
+
+               /*
+                TRACE.d("onDeviceFound(BluetoothDevice arg0):" + arg0.getName() + ":" + arg0.toString());
+                m_ListView.setVisibility(View.VISIBLE);
+                animScan.start();
+                imvAnimScan.setVisibility(View.VISIBLE);
+                if (m_Adapter != null) {
+                    Map<String, Object> itm = new HashMap<String, Object>();
+                    itm.put("ICON",
+                            arg0.getBondState() == BluetoothDevice.BOND_BONDED ? Integer
+                                    .valueOf(R.drawable.bluetooth_blue) : Integer
+                                    .valueOf(R.drawable.bluetooth_blue_unbond));
+                    itm.put("TITLE", arg0.getName() + "(" + arg0.getAddress() + ")");
+                    itm.put("ADDRESS", arg0.getAddress());
+                    m_Adapter.addData(itm);
+                    m_Adapter.notifyDataSetChanged();
+                }
+                String address = arg0.getAddress();
+                String name = arg0.getName();
+                name += address + "\n";
+                statusEditText.setText(name);
+                TRACE.d("found new device" + name);
+                */
             }
             else {
-                messageCarrier.postValue("Don't found new device");
+               // statusEditText.setText("Don't found new device");
                 TRACE.d("Don't found new device");
             }
         }
@@ -1140,18 +1852,18 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onSetSleepModeTime(boolean arg0) {
             TRACE.d("onSetSleepModeTime(boolean arg0):" + arg0);
-            if (arg0) {
-              //  statusEditText.setText("set the Sleep timee Success");
-            } else {
-                //statusEditText.setText("set the Sleep timee unSuccess");
-            }
+//            if (arg0) {
+//                statusEditText.setText("set the Sleep timee Success");
+//            } else {
+//                statusEditText.setText("set the Sleep timee unSuccess");
+//            }
         }
 
         @Override
         public void onReturnGetEMVListResult(String arg0) {
             TRACE.d("onReturnGetEMVListResult(String arg0):" + arg0);
             if (arg0 != null && arg0.length() > 0) {
-           //     statusEditText.setText("The emv list is : " + arg0);
+              //  statusEditText.setText("The emv list is : " + arg0);
             }
         }
 
@@ -1163,25 +1875,23 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onRequestDeviceScanFinished() {
             TRACE.d("onRequestDeviceScanFinished()");
-           // Toast.makeText(MainActivity.this, R.string.scan_over, Toast.LENGTH_LONG).show();
+            Toast.makeText(RavenActivity.this, R.string.scan_over, Toast.LENGTH_LONG).show();
         }
 
         @Override
         public void onRequestUpdateKey(String arg0) {
             TRACE.d("onRequestUpdateKey(String arg0):" + arg0);
-            /*
-            mhipStatus.setText("update checkvalue : " + arg0);
-            if(isUpdateFw){
-                updateFirmware();
-            }
-             */
+//            mhipStatus.setText("update checkvalue : " + arg0);
+//            if(isUpdateFw){
+//                updateFirmware();
+//            }
         }
 
         @Override
         public void onReturnGetQuickEmvResult(boolean arg0) {
             TRACE.d("onReturnGetQuickEmvResult(boolean arg0):" + arg0);
             if (arg0) {
-              //  statusEditText.setText("emv configed");
+               // statusEditText.setText("emv configed");
                 pos.setQuickEmv(true);
             } else {
               //  statusEditText.setText("emv don't configed");
@@ -1191,38 +1901,32 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onQposDoGetTradeLogNum(String arg0) {
             TRACE.d("onQposDoGetTradeLogNum(String arg0):" + arg0);
-           /*
             int a = Integer.parseInt(arg0, 16);
             if (a >= 188) {
-                statusEditText.setText("the trade num has become max value!!");
+               // statusEditText.setText("the trade num has become max value!!");
                 return;
             }
-            statusEditText.setText("get log num:" + a);
-            */
+          //  statusEditText.setText("get log num:" + a);
         }
 
         @Override
         public void onQposDoTradeLog(boolean arg0) {
             TRACE.d("onQposDoTradeLog(boolean arg0) :" + arg0);
-           /*
             if (arg0) {
-                statusEditText.setText("clear log success!");
+             //   statusEditText.setText("clear log success!");
             } else {
-                statusEditText.setText("clear log fail!");
+               // statusEditText.setText("clear log fail!");
             }
-            */
         }
 
         @Override
         public void onAddKey(boolean arg0) {
             TRACE.d("onAddKey(boolean arg0) :" + arg0);
-          /*
-            if (arg0) {
-                statusEditText.setText("ksn add 1 success");
-            } else {
-                statusEditText.setText("ksn add 1 failed");
-            }
-           */
+//            if (arg0) {
+//                statusEditText.setText("ksn add 1 success");
+//            } else {
+//                statusEditText.setText("ksn add 1 failed");
+//            }
         }
 
         @Override
@@ -1245,13 +1949,13 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         public void onQposDoGetTradeLog(String arg0, String arg1) {
             TRACE.d("onQposDoGetTradeLog(String arg0, String arg1):" + arg0 + TRACE.NEW_LINE + arg1);
             arg1 = QPOSUtil.convertHexToString(arg1);
-           // statusEditText.setText("orderId:" + arg1 + "\ntrade log:" + arg0);
+            //statusEditText.setText("orderId:" + arg1 + "\ntrade log:" + arg0);
         }
 
         @Override
         public void onRequestDevice() {
             List<UsbDevice> deviceList = getPermissionDeviceList();
-            UsbManager mManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+            UsbManager mManager = (UsbManager) RavenActivity.this.getSystemService(Context.USB_SERVICE);
             for (int i = 0; i < deviceList.size(); i++) {
                 UsbDevice usbDevice = deviceList.get(i);
                 if (usbDevice.getVendorId() == 2965 || usbDevice.getVendorId() == 0x03EB) {
@@ -1281,14 +1985,14 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onGetDevicePubKey(String clearKeys) {
             TRACE.d("onGetDevicePubKey(clearKeys):" + clearKeys);
-         //   statusEditText.setText(clearKeys);
+          //  statusEditText.setText(clearKeys);
             String lenStr = clearKeys.substring(0, 4);
             int sum = 0;
             for (int i = 0; i < 4; i++) {
                 int bit = Integer.parseInt(lenStr.substring(i, i + 1));
                 sum += bit * Math.pow(16, (3 - i));
             }
-           // pubModel = clearKeys.substring(4, 4 + sum * 2);
+            pubModel = clearKeys.substring(4, 4 + sum * 2);
         }
 
 //        @Override
@@ -1318,31 +2022,27 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
 
         @Override
         public void onReturnConverEncryptedBlockFormat(String result) {
-           // statusEditText.setText(result);
+          //  statusEditText.setText(result);
         }
 
         @Override
         public void onFinishMifareCardResult(boolean arg0) {
             TRACE.d("onFinishMifareCardResult(boolean arg0):" + arg0);
-            /*
-             if (arg0) {
-                statusEditText.setText("finish success");
-            } else {
-                statusEditText.setText("finish fail");
-            }
-             */
+//            if (arg0) {
+//                statusEditText.setText("finish success");
+//            } else {
+//                statusEditText.setText("finish fail");
+//            }
         }
 
         @Override
         public void onVerifyMifareCardResult(boolean arg0) {
             TRACE.d("onVerifyMifareCardResult(boolean arg0):" + arg0);
-         /*
-            if (arg0) {
-                statusEditText.setText(" onVerifyMifareCardResult success");
-            } else {
-                statusEditText.setText("onVerifyMifareCardResult fail");
-            }
-          */
+//            if (arg0) {
+//                statusEditText.setText(" onVerifyMifareCardResult success");
+//            } else {
+//                statusEditText.setText("onVerifyMifareCardResult fail");
+//            }
         }
 
         @Override
@@ -1352,7 +2052,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                 String addr = arg0.get("addr");
                 String cardDataLen = arg0.get("cardDataLen");
                 String cardData = arg0.get("cardData");
-                //statusEditText.setText("addr:" + addr + "\ncardDataLen:" + cardDataLen + "\ncardData:" + cardData);
+              //  statusEditText.setText("addr:" + addr + "\ncardDataLen:" + cardDataLen + "\ncardData:" + cardData);
             } else {
               //  statusEditText.setText("onReadWriteMifareCardResult fail");
             }
@@ -1361,23 +2061,23 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onWriteMifareCardResult(boolean arg0) {
             TRACE.d("onWriteMifareCardResult(boolean arg0):" + arg0);
-            if (arg0) {
-              //  statusEditText.setText("write data success!");
-            } else {
-             //   statusEditText.setText("write data fail!");
-            }
+//            if (arg0) {
+//                statusEditText.setText("write data success!");
+//            } else {
+//                statusEditText.setText("write data fail!");
+//            }
         }
 
         @Override
         public void onOperateMifareCardResult(Hashtable<String, String> arg0) {
-            if (arg0 != null) {
-                TRACE.d("onOperateMifareCardResult(Hashtable<String, String> arg0):" + arg0.toString());
-                String cmd = arg0.get("Cmd");
-                String blockAddr = arg0.get("blockAddr");
-              //  statusEditText.setText("Cmd:" + cmd + "\nBlock Addr:" + blockAddr);
-            } else {
-                //statusEditText.setText("operate failed");
-            }
+//            if (arg0 != null) {
+//                TRACE.d("onOperateMifareCardResult(Hashtable<String, String> arg0):" + arg0.toString());
+//                String cmd = arg0.get("Cmd");
+//                String blockAddr = arg0.get("blockAddr");
+//                statusEditText.setText("Cmd:" + cmd + "\nBlock Addr:" + blockAddr);
+//            } else {
+//                statusEditText.setText("operate failed");
+//            }
         }
 
         @Override
@@ -1387,9 +2087,9 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
 
                 String verLen = arg0.get("versionLen");
                 String ver = arg0.get("cardVersion");
-              //  statusEditText.setText("versionLen:" + verLen + "\nverison:" + ver);
+                //statusEditText.setText("versionLen:" + verLen + "\nverison:" + ver);
             } else {
-               // statusEditText.setText("get mafire UL version failed");
+                //statusEditText.setText("get mafire UL version failed");
             }
         }
 
@@ -1415,9 +2115,9 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                 String blockAddr = arg0.get("blockAddr");
                 String dataLen = arg0.get("dataLen");
                 String cardData = arg0.get("cardData");
-              //  statusEditText.setText("blockAddr:" + blockAddr + "\ndataLen:" + dataLen + "\ncardData:" + cardData);
+                //statusEditText.setText("blockAddr:" + blockAddr + "\ndataLen:" + dataLen + "\ncardData:" + cardData);
             } else {
-             //   statusEditText.setText("read mafire UL failed");
+              //  statusEditText.setText("read mafire UL failed");
             }
         }
 
@@ -1437,9 +2137,9 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                 TRACE.d("verifyMifareULData(Hashtable<String, String> arg0):" + arg0.toString());
                 String dataLen = arg0.get("dataLen");
                 String pack = arg0.get("pack");
-              //  statusEditText.setText("dataLen:" + dataLen + "\npack:" + pack);
+                //statusEditText.setText("dataLen:" + dataLen + "\npack:" + pack);
             } else {
-               // statusEditText.setText("verify UL failed");
+              //  statusEditText.setText("verify UL failed");
             }
         }
 
@@ -1459,7 +2159,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         public void onGetShutDownTime(String arg0) {
             if (arg0 != null) {
                 TRACE.d("onGetShutDownTime(String arg0):" + arg0.toString());
-             //   statusEditText.setText("shut down time is : " + Integer.parseInt(arg0, 16) + "s");
+                //statusEditText.setText("shut down time is : " + Integer.parseInt(arg0, 16) + "s");
             } else {
                // statusEditText.setText("get the shut down time is fail!");
             }
@@ -1469,27 +2169,26 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         public void onQposDoSetRsaPublicKey(boolean arg0) {
             TRACE.d("onQposDoSetRsaPublicKey(boolean arg0):" + arg0);
             if (arg0) {
-              //  statusEditText.setText("set rsa is successed!");
+               // statusEditText.setText("set rsa is successed!");
             } else {
-                //statusEditText.setText("set rsa is failed!");
+               // statusEditText.setText("set rsa is failed!");
             }
         }
 
         @Override
         public void onQposGenerateSessionKeysResult(Hashtable<String, String> arg0) {
-            if (arg0 != null) {
-                TRACE.d("onQposGenerateSessionKeysResult(Hashtable<String, String> arg0):" + arg0.toString());
-                String rsaFileName = arg0.get("rsaReginString");
-                String enPinKeyData = arg0.get("enPinKey");
-                String enKcvPinKeyData = arg0.get("enPinKcvKey");
-                String enCardKeyData = arg0.get("enDataCardKey");
-                String enKcvCardKeyData = arg0.get("enKcvDataCardKey");
+//            if (arg0 != null) {
+//                TRACE.d("onQposGenerateSessionKeysResult(Hashtable<String, String> arg0):" + arg0.toString());
+//                String rsaFileName = arg0.get("rsaReginString");
+//                String enPinKeyData = arg0.get("enPinKey");
+//                String enKcvPinKeyData = arg0.get("enPinKcvKey");
+//                String enCardKeyData = arg0.get("enDataCardKey");
+//                String enKcvCardKeyData = arg0.get("enKcvDataCardKey");
 //                statusEditText.setText("rsaFileName:" + rsaFileName + "\nenPinKeyData:" + enPinKeyData + "\nenKcvPinKeyData:" +
 //                        enKcvPinKeyData + "\nenCardKeyData:" + enCardKeyData + "\nenKcvCardKeyData:" + enKcvCardKeyData);
-//
-            } else {
-               // statusEditText.setText("get key failed,pls try again!");
-            }
+//            } else {
+//                statusEditText.setText("get key failed,pls try again!");
+//            }
         }
 
         @Override
@@ -1497,22 +2196,22 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             TRACE.d("transferMifareData(String arg0):" + arg0.toString());
 
             // TODO Auto-generated method stub
-            if (arg0 != null) {
-             //   statusEditText.setText("response data:" + arg0);
-            } else {
-              //  statusEditText.setText("transfer data failed!");
-            }
+//            if (arg0 != null) {
+//                statusEditText.setText("response data:" + arg0);
+//            } else {
+//                statusEditText.setText("transfer data failed!");
+//            }
         }
 
         @Override
         public void onReturnRSAResult(String arg0) {
             TRACE.d("onReturnRSAResult(String arg0):" + arg0.toString());
 
-            if (arg0 != null) {
-                //statusEditText.setText("rsa data:\n" + arg0);
-            } else {
-               // statusEditText.setText("get the rsa failed");
-            }
+//            if (arg0 != null) {
+//                statusEditText.setText("rsa data:\n" + arg0);
+//            } else {
+//                statusEditText.setText("get the rsa failed");
+//            }
         }
 
         @Override
@@ -1524,20 +2223,18 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public  void onReturnDeviceCSRResult(String re) {
             TRACE.d("onReturnDeviceCSRResult:"+re);
-           // statusEditText.setText("onReturnDeviceCSRResult:"+re);
+            //statusEditText.setText("onReturnDeviceCSRResult:"+re);
         }
 
         @Override
         public  void onReturnStoreCertificatesResult(boolean re) {
             TRACE.d("onReturnStoreCertificatesResult:"+re);
-           /*
             if(isInitKey){
-                statusEditText.setText("Init key result is :"+re);
+               // statusEditText.setText("Init key result is :"+re);
                 isInitKey = false;
             }else {
-                statusEditText.setText("Exchange Certificates result is :"+re);
+              //  statusEditText.setText("Exchange Certificates result is :"+re);
             }
-            */
 
         }
 
@@ -1545,7 +2242,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         public  void onReturnDeviceSigningCertResult(String certificates, String certificatesTree) {
             TRACE.d("onReturnDeviceSigningCertResult:"+certificates+"\n"+certificatesTree);
             deviceSignCert = certificates;
-            String command = context. getString(R.string.pedi_command,certificates,"1","oeap");
+            String command = getString(R.string.pedi_command,certificates,"1","oeap");
             command = ParseASN1Util.addTagToCommand(command,"CD",certificates);
             TRACE.i("request the RKMS command is "+command);
             String pediRespose = "[AOPEDI;ANY;CC308203B33082029BA00302010202074EB0D60000987E300D06092A864886F70D01010B0500308190310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A5669727475437279707431173015060355040C0C0E44737072656164204B44482043413117301506035504410C0E44737072656164204B44482043413117301506035504030C0E44737072656164204B4448204341301E170D3231303330363030303030305A170D3330303330373030303030305A3081A2310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A56697274754372797074311D301B060355040C0C14447370726561645F417573524B4D533130312D56311D301B06035504410C14447370726561645F417573524B4D533130312D56311D301B06035504030C14447370726561645F417573524B4D533130312D5630820122300D06092A864886F70D01010105000382010F003082010A0282010100D7FD40DD513EE82491FABA3EB734C3FE69C79973797007A2183EC9C468F73D8E1CB669DDA6DC32CA125F9FAEAC0C0556893C9196FB123B06BC9B880EEF367CD17000C7E0ECF7313DD2D396F29C8D977A65946258BE5A4133462F0675161407EED3D263BC20E9271B9070DCC1A6376F89E7E9E2B304BC756E3E3B61B869A2E39F11067D00B5BA3817673A730F42DC4C037FC214207C70A1E3E43F7D7494E71EBDD5BB0E9AFAE32E422DB90B85E230DF406FB12470AD0360FD7BDFDD1A29BCE91655A835129858A0E9EB04845A80F1E9F8EAA20C67C6B8A61113D6FFDD7DF5719778A03A30F69B0DD9033D5E975F723CC18792CC6988250A7DBD20901450651A810203010001300D06092A864886F70D01010B050003820101008F002AE3AFB49C2E7D99CC7B933617D180CB4E8EA13CBCBE7469FC4E5124033F06E4C3B0DAB3C6CA4625E3CD53E7B86C247CDF100E266059366F8FEEC746507E1B0D0924029805AAB89FCE1482946B8B0C1F546DD56B399AB48891B731148C878EF4D02AE641717A3D381C7B62011B76A6FFBF20846217EB68149C96B4B134F980060A542DBE2F32BF7AD308F26A279B41C65E32D4E260AE68B3010685CE36869EFF09D211CE64401F417A72F29F49A2EE713ACC37C29AECBFEBE571EF11D883815F54FA3E52A917CC3D6B008A3E3C52164FF5591D869026D248873F15DE531104F329C279FC5B6BC28ABC833F8C31BEF47783A5D5B9C534A57530D9AE463DC3;CD308203B33082029BA00302010202074EB0D60000987C300D06092A864886F70D01010B0500308190310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A5669727475437279707431173015060355040C0C0E44737072656164204B44482043413117301506035504410C0E44737072656164204B44482043413117301506035504030C0E44737072656164204B4448204341301E170D3231303330373030303030305A170D3330303330383030303030305A3081A2310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A56697274754372797074311D301B060355040C0C14447370726561645F417573524B4D533130312D45311D301B06035504410C14447370726561645F417573524B4D533130312D45311D301B06035504030C14447370726561645F417573524B4D533130312D4530820122300D06092A864886F70D01010105000382010F003082010A0282010100A62A4935B57BA478F41B6C8B3F79E84DB61E516FEC8D5BE3E86FD296C6906625E0316A77F59D6D5075811BA7BB0801366BA7E370B758E3E1DCE005008C13D368536C2216FAF8AF70EBC6B5D1D231AFD19D6270DDBEA6535B46135D1DE11F374978A655FAA8C2A0DDC933CF82E9DC69DABF8676D0E81762D9B01799C83A8DF3EE70584AA4543EBBDAB02A0EFCA6A276588893DD28BD096400E315ECF5FE91EC210EEC2BE8763FEFB57D1448CC7D0FCDC3BDCE4B7BAAD546E0E5E99281B4F1AB052E1B0361977406B6B57B32353E9F338BED29E55E2D1F65C4322B5850D45146D5A66BFE8323C0D3E78E55A8945B622E15295B9176454A868399990B31D7B104CF0203010001300D06092A864886F70D01010B05000382010100296101AC1ED80EF9DD845D03F2D1F822B4AEFD50E0A1F47FA98105155327FDA6CE52BCD650BE1EB6DCD7F3CDF73325E85EE979EF0364970ADF6ED3A247B2E3E2D83D877BEBD66B20F3983E8DF8932F82F30C3FAF980ADF72E9FEE30EBAFC42B19FB1EAEC74BAE16E2D4EF245D18B58FB560A64C9B515EA065ECA7AE81D6ED0B97A24636E1E70EE3F2F3A3364C17C6B36BE82588BBED79F23914D4E4E7E1E3FC2A5438FAB0535D37D6FA52009ACD37B6F413700BBF440B6B94E4F12C7F465B8AAC2A03776AAB9AFBAE42FE19664DC0B4E3D8A90EB185529CABE39335AEC58295E1E073A765733410FD769345E9B99C0AA0CBE3FA815661857DCF7EA3BD35EFB4C;RD04916CCC6289600A55118FC37AF0999E;]";
@@ -1553,7 +2250,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
             String cd = ParseASN1Util.parseToken(pediRespose,"CD");
             BASE64Decoder base64Decoder = new BASE64Decoder();
             try {
-                String caChain= QPOSUtil.byteArray2Hex(base64Decoder.decodeBuffer(QPOSUtil.readRSANStream(context.getAssets().open("FX-Dspread-CA-Tree.pem"))));
+                String caChain= QPOSUtil.byteArray2Hex(base64Decoder.decodeBuffer(QPOSUtil.readRSANStream(getAssets().open("FX-Dspread-CA-Tree.pem"))));
                 //the api callback is onReturnStoreCertificatesResult
                 pos.loadCertificates(cc,cd,caChain);
 //                statusEditText.setText("is load the server cert to device...");
@@ -1565,8 +2262,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         @Override
         public void onReturnAnalyseDigEnvelop(String result) {
             super.onReturnAnalyseDigEnvelop(result);
-            /*
-              verifySignatureCommand = ParseASN1Util.addTagToCommand(verifySignatureCommand,"KA",result);
+            verifySignatureCommand = ParseASN1Util.addTagToCommand(verifySignatureCommand,"KA",result);
             if(pedvVerifySignatureCommand != null){
                 pedvVerifySignatureCommand = ParseASN1Util.addTagToCommand(pedvVerifySignatureCommand,"KA",result);
                 TRACE.i("send key encryption command to RMKS is "+ pedvVerifySignatureCommand);
@@ -1596,33 +2292,199 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                     //the api callback is onRequestUpdateWorkKeyResult
                     pos.loadSessionKeyByTR_34(envelop);
                 }else {
-                    statusEditText.setText("signature verification successful.");
+                 //   statusEditText.setText("signature verification successful.");
                     ParseASN1Util.parseASN1new(KB);
                     String data =  ParseASN1Util.getTr31Data();
                     //the api callback is onReturnupdateKeyByTR_31Result
                     pos.updateKeyByTR_31(data,30);
                 }
             }else {
-                statusEditText.setText("signature verification failed.");
+                //statusEditText.setText("signature verification failed.");
             }
-             */
-        }
-
-    private void getPinBlockAndKsn(String str) {
-        Hashtable<String, String> tlvList = pos.anlysEmvIccData(str);
-        PINBLOCK = tlvList.get("pinBlock" );
-        KSN = tlvList.get("pinKsn");
-        CARDHOLDERNAME = tlvList.get("cardholderName" );
-
-        if(!TextUtils.isEmpty(PINBLOCK) && !TextUtils.isEmpty(CARDHOLDERNAME)){
-            byte [] byte_ksn = DUKPTUtil.parseHexStr2Byte(KSN);
-            byte [] byte_bdk = DUKPTUtil.parseHexStr2Byte(context.getString(R.string.bdk));
-            byte[] ipek = DUKPTUtil.GenerateIPEK(byte_ksn,byte_bdk);
-            byte[] pinKey = DUKPTUtil.GetPinKeyVariant(byte_ksn,ipek);
-            String pinKeyStr = DUKPTUtil.parseByte2HexStr(pinKey);
-            PINBLOCK = DUKPTUtil.parseByte2HexStr(DUKPTUtil.TriDesDecryption(DUKPTUtil.parseHexStr2Byte(pinKeyStr), DUKPTUtil.parseHexStr2Byte(PINBLOCK)));
         }
     }
+
+/*
+    private int getKeyIndex() {
+        String s = mKeyIndex.getText().toString();
+        if (TextUtils.isEmpty(s)) {
+            return 0;
+        }
+        int i = 0;
+        try {
+            i = Integer.parseInt(s);
+            if (i > 9 || i < 0) {
+                i = 0;
+            }
+        } catch (Exception e) {
+            i = 0;
+            return i;
+        }
+        return i;
+    }
+
+ */
+
+    public void dismissDialog(){
+        if (dialog != null){
+            dialog.dismiss();
+        }
+    }
+    public static String getDigitalEnvelopStr(String encryptData, String encryptDataWith3des, String keyType, String clearData, String signData, String IV) {
+        int encryptDataLen = (encryptData.length() / 2);
+        int encryptDataWith3desLen = (encryptDataWith3des.length() / 2);
+        int clearDataLen = (clearData.length() / 2);
+        int signDataLen = (signData.length() / 2);
+        int ivLen = IV.length() / 2;
+        int len = 2 + 1 + 2 + 2 + encryptDataLen + 2 + encryptDataWith3desLen + 1 + ivLen + 1 + 2 + clearDataLen + 2 + signDataLen;
+        String len2 = QPOSUtil.byteArray2Hex(QPOSUtil.intToBytes(len));
+        String result = len2 + "010000" + QPOSUtil.intToHex2(encryptDataLen) + encryptData + QPOSUtil.intToHex2(encryptDataWith3desLen) + encryptDataWith3des
+                + "0" + Integer.toString(ivLen, 16) + IV
+                + keyType + QPOSUtil.intToHex2(clearDataLen) + clearData + QPOSUtil.intToHex2(signDataLen) + signData;
+        System.out.println("sys = " + result);
+        return result;
+    }
+
+    protected  String getPanFromTrack2() {
+        String track2 = readTrack2();
+        if (track2 != null) {
+            for (int i = 0; i < track2.length(); i++) {
+                if (track2.charAt(i) == '=' || track2.charAt(i) == 'D') {
+                    int endIndex = Math.min(i, 19);
+                    return track2.substring(0, endIndex);
+                }
+            }
+        }
+        return null;
+    }
+
+    public  String readTrack2() {
+        String track2 = null;
+        try {
+            track2 = pos.getICCTag(0,1,"57").get("tlv");
+            if (track2 == null || track2.isEmpty()) {
+                track2 = pos.getICCTag(0,1,"9F20").get("tlv");
+            }
+            if (track2 == null || track2.isEmpty()) {
+                track2 = pos.getICCTag(0,1,"9F6B").get("tlv");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (!TextUtils.isEmpty(track2) && track2.endsWith("F")) {
+            return track2.substring(0, track2.length() - 1);
+        }
+        return track2;
+    }
+    public  String readPan() {
+        String pan = null;
+        try {
+            pan = pos.getICCTag(0,1,"5A").get("tlv");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (TextUtils.isEmpty(pan)) {
+            return getPanFromTrack2();
+        }
+        if (pan.endsWith("F")) {
+            return pan.substring(0, pan.length() - 1);
+        }
+        return pan;
+    }
+    private static String getCardHolderFromTrack1(String track1) {
+        if (track1 != null && track1.length() > 20) {
+            int idx = track1.indexOf('^');
+            String temp = track1.substring(idx + 1);
+            return temp.substring(0, temp.indexOf('^'));
+        }
+        return null;
+    }
+
+    public  String readCardHolder() {
+        String cardHolderName = null;
+        try {
+            cardHolderName = pos.getICCTag(0,1,"5F20").get("tlv");
+            if (cardHolderName == null || cardHolderName.isEmpty()) {
+                String track1 =pos.getICCTag(0,1,"56").get("tlv");
+                cardHolderName = getCardHolderFromTrack1(track1);
+            }
+            return cardHolderName;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public  TransactionResponse showEmvTransResult() {
+        TransactionResponse mResponse = new TransactionResponse();
+
+        try {
+            mResponse.amount = String.valueOf(totalAmountPrint);
+        //    readPan();
+            mResponse.IccData = ICCDATA;
+                if(pos.getICCTag(0,1,"4F") != null){
+                    mResponse.CardOrg = pos.getICCTag(0,1,"4F").get("tlv");
+                }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if(pos.getICCTag(0,1,"5F24") != null){
+            mResponse.ExpireDate = pos.getICCTag(0,1,"5F24").get("tlv");
+        }
+        if(pos.getICCTag(0,1,"5F20") != null){
+            mResponse.CardHolderName = pos.getICCTag(0,1,"5F20").get("tlv");
+        }else{
+            String name = readCardHolder();
+            mResponse.CardHolderName = name;
+        }
+
+        if(pos.getICCTag(0,1,"9F12") != null){
+            mResponse.CardType = pos.getICCTag(0,1,"9F12").get("tlv");
+        }
+
+        mResponse.TransactionType = "00"; //POS TRANSACTION
+        mResponse.AccountType = accountType;
+        if (PINBLOCK != null) {
+            mResponse.PinBlock = PINBLOCK;
+        }
+        if(ID != null){
+            mResponse.MacAddress = ID;
+        }
+
+        mResponse.Track2 =   extractTag(EmvTags.TRACK_2_EQUIVALENT_DATA);
+        mResponse.CardNo =  extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER);
+        mResponse.CardSequenceNumber = padLeft(extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER_SEQUENCE_NUMBER),3, '0');
+
+        StringBuilder builder = new StringBuilder();
+        for(String s : tags){
+            List<com.ravenpos.ravendspreadpos.utils.utils.TLV> parse = TLVParser.parse(TLV);
+
+            //String tagR = pos.getICCTag(0,1,s).get("tlv");
+            String tag =  Objects.requireNonNull(TLVParser.searchTLV(parse, s)).value;
+            if(tag != null){
+                builder.append(s);
+               SharedPreferencesUtils.getInstance().setValue(s, tag.toUpperCase());
+            }
+        }
+
+        //readTrack2();
+        mResponse.responseCode = _responseCode;
+        return mResponse;
+    }
+
+
+    private String extractTag(com.pnsol.sdk.miura.emv.tlv.Tag tag){
+        try {
+            return pos.getTag(tagList.get(tag.toString())).get(0).getValue();
+        }catch (Exception e){
+            return "";
+        }
+    }
+    String[] tags = new String[]{
+             "9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A", "5F34", "82", "9F1A", "9F03", "9F33", "84", "9F34", "9F35", "9F41","9F12","4F"
+            // "9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A", "5F34", "82", "9F1A", "9F03", "9F33", "9F34", "9F35"
+    };
+
 
     private Hashtable<String,String> getTags() {
         Hashtable<String, String> decodeData = new Hashtable<>();
@@ -1636,12 +2498,23 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         decodeData.put(EmvTags.TRACK_2_EQUIVALENT_DATA.toString(), pos.getICCTag(0, 1, EmvTags.TRACK_2_EQUIVALENT_DATA.toString()).get("tlv"));
         decodeData.put(EmvTags.CARDHOLDER_VERIFICATION_METHOD_RESULTS.toString(), pos.getICCTag(0, 1, EmvTags.CARDHOLDER_VERIFICATION_METHOD_RESULTS.toString()).get("tlv"));
         decodeData.put(EmvTags.CARD_HOLDER_NAME.toString(), pos.getICCTag(0, 1, EmvTags.CARD_HOLDER_NAME.toString()).get("tlv"));
+
+
+//        decodeData.put(EmvTags.APPLICATION_CRYPTOGRAM.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_CRYPTOGRAM.toString()).get("tlv"));
+//        decodeData.put(EmvTags.CRYPTOGRAM_INFORMATION_DATA.toString(), pos.getICCTag(0, 1, EmvTags.CRYPTOGRAM_INFORMATION_DATA.toString()).get("tlv"));
+//        decodeData.put(EmvTags.ISSUER_APPLICATION_DATA.toString(), pos.getICCTag(0, 1, EmvTags.ISSUER_APPLICATION_DATA.toString()).get("tlv"));
+//        decodeData.put(EmvTags.UNPREDICTABLE_NUMBER.toString(), pos.getICCTag(0, 1, EmvTags.UNPREDICTABLE_NUMBER.toString()).get("tlv"));
+//        decodeData.put(EmvTags.APPLICATION_TRANSACTION_COUNTER.toString(), pos.getICCTag(0, 1, EmvTags.APPLICATION_TRANSACTION_COUNTER.toString()).get("tlv"));
+//        decodeData.put(EmvTags.TERMINAL_VERIFICATION_RESULTS.toString(), pos.getICCTag(0, 1, EmvTags.TERMINAL_VERIFICATION_RESULTS.toString()).get("tlv"));
+//        decodeData.put(EmvTags.TRANSACTION_DATE.toString(), pos.getICCTag(0, 1, EmvTags.TRANSACTION_DATE.toString()).get("tlv"));
+
+        //TERMINAL_VERIFICATION_RESULTS
+
         return decodeData;
     }
     private String getICCTags(){
         StringBuilder builder = new StringBuilder();
         try {
-            String[] tags = new String[]{"9F26", "9F27", "9F10", "9F37", "9F36", "95", "9A", "9C", "9F02", "5F2A", "5F34", "82", "9F1A", "9F03", "9F33", "9F34", "9F35"};
             for(String s : tags){
                 String tag = pos.getICCTag(0,1,s).get("tlv");
                 builder.append(tag);            }
@@ -1660,154 +2533,4 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
     }
 
 
-    @Override
-    public void onProcessComplete(String s, int i) {
-        TransactionResponse response = new Gson().fromJson(s, TransactionResponse.class);
-        try {
-            byte[] paras = response.responseDescription == null ? context.getString(R.string.unable_to_proceed).getBytes("GBK") : response.responseDescription.getBytes("GBK");
-            String customDisplayString = DUKPTUtil.parseByte2HexStr(paras);
-            pos.lcdShowCustomDisplay(QPOSService.LcdModeAlign.LCD_MODE_ALIGNCENTER, customDisplayString,5);
-            listener.onCompleteTransaction(response);
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    public static String getDigitalEnvelopStr(String encryptData, String encryptDataWith3des, String keyType, String clearData, String signData, String IV) {
-        int encryptDataLen = (encryptData.length() / 2);
-        int encryptDataWith3desLen = (encryptDataWith3des.length() / 2);
-        int clearDataLen = (clearData.length() / 2);
-        int signDataLen = (signData.length() / 2);
-        int ivLen = IV.length() / 2;
-        int len = 2 + 1 + 2 + 2 + encryptDataLen + 2 + encryptDataWith3desLen + 1 + ivLen + 1 + 2 + clearDataLen + 2 + signDataLen;
-        String len2 = QPOSUtil.byteArray2Hex(QPOSUtil.intToBytes(len));
-        String result = len2 + "010000" + QPOSUtil.intToHex2(encryptDataLen) + encryptData + QPOSUtil.intToHex2(encryptDataWith3desLen) + encryptDataWith3des
-                + "0" + Integer.toString(ivLen, 16) + IV
-                + keyType + QPOSUtil.intToHex2(clearDataLen) + clearData + QPOSUtil.intToHex2(signDataLen) + signData;
-        System.out.println("sys = " + result);
-        return result;
-    }
-    @Override
-    public void onErrorOccur(String s, int i) {
-        listener.onProcessingError(new RuntimeException(s), i);
-    }
-    public void close() {
-        if (pos == null) {
-            return;
-        }
-        if (pos == null) {
-            return;
-        } else if (posType == POS_TYPE.AUDIO) {
-            pos.closeAudio();
-        } else if (posType ==POS_TYPE.BLUETOOTH) {
-            pos.disconnectBT();
-//			pos.disConnectBtPos();
-        } else if (posType ==POS_TYPE.BLUETOOTH_BLE) {
-            pos.disconnectBLE();
-        } else if (posType == POS_TYPE.UART) {
-            pos.closeUart();
-        } else if (posType == POS_TYPE.USB) {
-            pos.closeUsb();
-        } else if (posType == POS_TYPE.OTG) {
-            pos.closeUsb();
-        }
-        pos.disconnectBT();
-    }
-
-    private List getPermissionDeviceList() {
-        UsbManager mManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
-        List deviceList = new ArrayList<UsbDevice>();
-        // check for existing devices
-        for (UsbDevice device : mManager.getDeviceList().values()) {
-            deviceList.add(device);
-        }
-        return deviceList;
-    }
-    private void devicePermissionRequest(UsbManager mManager, UsbDevice usbDevice) {
-        PendingIntent mPermissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(
-                "com.android.example.USB_PERMISSION"), 0);
-        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        context.registerReceiver(mUsbReceiver, filter);
-        mManager.requestPermission(usbDevice, mPermissionIntent);
-    }
-    private String extractTag(Tag tag){
-        try {
-            return pos.getTag(tagList.get(tag.toString())).get(0).getValue();
-        }catch (Exception e){
-            return "";
-        }
-    }
-
-    private void processRequestOnline(final EmvCardData emvCardData) {
-            String rt = "";
-            String finalev= "";
-      /*
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                NetworkUtils.postRequest(context.getString(R.string.nibbs_address),
-                        "TransactionRequest",
-                        "jsonRequest",
-                        new Gson().toJson(emvCardData),
-                        MyPosListener.this,
-                        404);
-            }
-        }).start();
-       */
-    }
-    private EmvCardData prepareTagsForOnlineProcess(String macAddress){
-        EmvCardData emvcardData = new EmvCardData();
-        emvcardData.aid = extractTag(EmvTags.APPLICATION_IDENTIFIER_TERMINAL);
-        emvcardData.track2 = extractTag(EmvTags.TRACK_2_EQUIVALENT_DATA);
-        emvcardData.cardHolderName = CARDHOLDERNAME;
-        emvcardData.iccData = ICCDATA;
-        emvcardData.pindata = PINBLOCK;
-        emvcardData.otheramount = extractTag(EmvTags.AMOUNT_OTHER_NUMERIC);
-        emvcardData.realamount = amount;
-        emvcardData.transactiontype = transactionType.toString();
-        emvcardData.pan = extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER);
-        emvcardData.cardSequenceNo = padLeft(extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER_SEQUENCE_NUMBER),3, '0');
-        emvcardData.transactionamount = extractTag(EmvTags.AMOUNT_AUTHORISED_NUMERIC);
-        emvcardData.cardExpiryDate = extractTag(EmvTags.APPLICATION_EXPIRATION_DATE).substring(0,4);
-        return  emvcardData;
-    }
-
-    private enum POS_TYPE {
-        BLUETOOTH, AUDIO, UART, USB, OTG, BLUETOOTH_BLE
-    }
-    private void startEmvTransaction(){
-        terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
-        PINBLOCK = null; KSN = null; CARDHOLDERNAME = null; ICCDATA = null; emvCardData = null;
-        pos.setCardTradeMode(QPOSService.CardTradeMode.ONLY_INSERT_CARD);
-        pos.doTrade(timeout);
-    }
-
-    private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
-    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (ACTION_USB_PERMISSION.equals(action)) {
-                synchronized (this) {
-                    UsbDevice device = (UsbDevice) intent
-                            .getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (intent.getBooleanExtra(
-                            UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if (device != null) {
-                            // call method to set up device communication
-                            TRACE.i("usb" + "permission granted for device "
-                                    + device);
-                            pos.setPermissionDevice(device);
-                        }
-                    } else {
-                        TRACE.i("usb" + "permission denied for device " + device);
-
-                    }
-                    context.unregisterReceiver(mUsbReceiver);
-                }
-            }
-        }
-    };
 }
