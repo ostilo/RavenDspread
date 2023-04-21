@@ -288,7 +288,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             @Override
             public void onClick(DialogInterface dialog, int item) {
                 String selectedDevice = (String) items[item];
-
                 dialog.dismiss();
                 usbDevice = USBClass.getMdevices().get(selectedDevice);
                 open(QPOSService.CommunicationMode.USB_OTG_CDC_ACM);
@@ -323,7 +322,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         pos.updateEmvCAPK(QPOSService.EMVDataOperation.Add, visaCapk);
 
     }
-
 
     private void addCAPKMaster(){
 
@@ -389,7 +387,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
     private void getInitTermConfig(){
        // initAID_CAPK();
-       // pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
+       pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
         ArrayList<String> list = new ArrayList<String>();
 //        list.add(EmvAppTag.Terminal_type+"22");
 //        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
@@ -1451,7 +1449,15 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         @Override
         public void onRequestQposConnected() {
-            //getInitTermConfig();
+           // getInitTermConfig();
+
+          try {
+//              pos.resetQPOS();
+//              pos.resetPosStatus();
+          }catch (Exception e){
+              String tt = e.getLocalizedMessage();
+          }
+
             TRACE.d("onRequestQposConnected()");
           //  Toast.makeText(RavenActivity.this, "onRequestQposConnected", Toast.LENGTH_LONG).show();
             dismissDialog();

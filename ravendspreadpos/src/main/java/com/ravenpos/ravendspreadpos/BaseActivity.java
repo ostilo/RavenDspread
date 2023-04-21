@@ -27,22 +27,22 @@ public  class BaseActivity extends AppCompatActivity {
         initializeSheet();
     }
     private void initializeSheet(){
-        cancelDialog = new BottomSheetDialog(this);
-        cancelDialog.setContentView(R.layout.not_supported);
-        btnContinue = cancelDialog.findViewById(R.id.btnDonCancel);
-        btnContinue.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                cancelDialog.dismiss();
-            }
-        });
+       // cancelDialog = new BottomSheetDialog(this);
+        //cancelDialog.setContentView(R.layout.not_supported);
+       // btnContinue = cancelDialog.findViewById(R.id.btnDonCancel);
+//        btnContinue.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                cancelDialog.dismiss();
+//            }
+//        });
 
     }
 
 
 
     void toastPendingSheet() {
-        cancelDialog.show();
+      //  cancelDialog.show();
     }
 
     protected void showResult(final TextView textView, final String text) {
