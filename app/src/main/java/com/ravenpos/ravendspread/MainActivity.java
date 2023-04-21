@@ -17,6 +17,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 
 import com.ravenpos.ravendspreadpos.device.RavenActivity;
+import com.ravenpos.ravendspreadpos.device.WelcomeActivity;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
 import com.ravenpos.ravendspreadpos.utils.AppLog;
 import com.ravenpos.ravendspreadpos.utils.Constants;
@@ -174,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     }
 
     private void startAccountSelectionActivity(Double amount) {
-        Intent intent = new Intent(this, RavenActivity.class);
+        Intent intent = new Intent(this, WelcomeActivity.class);
         intent.putExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE, "10");
         intent.putExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, amount);
         intent.putExtra(Constants.TERMINAL_ID, "2030LQ01");
