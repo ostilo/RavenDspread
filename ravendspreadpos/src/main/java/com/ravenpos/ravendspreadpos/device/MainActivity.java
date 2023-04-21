@@ -1,5 +1,7 @@
 package com.ravenpos.ravendspreadpos.device;
 
+import static android.app.PendingIntent.FLAG_IMMUTABLE;
+import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import android.Manifest;
@@ -20,6 +22,7 @@ import android.graphics.drawable.AnimationDrawable;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -748,10 +751,10 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             if (pos != null) {
                 if (isNormalBlu) {
                     //stop to scan bluetooth
-                    pos.stopScanQPos2Mode();
+                    //pos.stopScanQPos2Mode();
                 } else {
                     //stop to scan ble
-                    pos.stopScanQposBLE();
+                   // pos.stopScanQposBLE();
                 }
             }
         }
@@ -2104,7 +2107,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onRequestDevice() {
             List<UsbDevice> deviceList = getPermissionDeviceList();
-            UsbManager mManager = (UsbManager) MainActivity.this.getSystemService(Context.USB_SERVICE);
+            UsbManager mManager = (UsbManager) BaseApplication.getINSTANCE().getSystemService(Context.USB_SERVICE);
             for (int i = 0; i < deviceList.size(); i++) {
                 UsbDevice usbDevice = deviceList.get(i);
                 if (usbDevice.getVendorId() == 2965 || usbDevice.getVendorId() == 0x03EB) {
@@ -2484,8 +2487,14 @@ public class MainActivity extends BaseActivity implements TransactionListener {
     }
 
     private void devicePermissionRequest(UsbManager mManager, UsbDevice usbDevice) {
+        int flags = 0;
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+            flags = FLAG_IMMUTABLE;
+        }else{
+            flags = FLAG_UPDATE_CURRENT;
+        }
         PendingIntent mPermissionIntent = PendingIntent.getBroadcast(MainActivity.this, 0, new Intent(
-                "com.android.example.USB_PERMISSION"), 0);
+                "com.android.example.USB_PERMISSION"), flags);
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
         registerReceiver(mUsbReceiver, filter);
         mManager.requestPermission(usbDevice, mPermissionIntent);
@@ -2520,7 +2529,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
     };
 
     private List getPermissionDeviceList() {
-        UsbManager mManager = (UsbManager) MainActivity.this.getSystemService(Context.USB_SERVICE);
+        UsbManager mManager = (UsbManager) BaseApplication.getINSTANCE().getSystemService(Context.USB_SERVICE);
         List deviceList = new ArrayList<UsbDevice>();
         // check for existing devices
         for (UsbDevice device : mManager.getDeviceList().values()) {

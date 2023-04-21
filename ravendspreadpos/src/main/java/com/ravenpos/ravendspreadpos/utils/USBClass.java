@@ -1,5 +1,8 @@
 package com.ravenpos.ravendspreadpos.utils;
 
+import static android.app.PendingIntent.FLAG_IMMUTABLE;
+import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.PendingIntent;
@@ -59,8 +62,14 @@ public class USBClass {
 		
 		mdevices = new HashMap<String, UsbDevice>();
 		ArrayList<String> deviceList = new ArrayList<String>();
+		int flags = 0;
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+			flags = FLAG_IMMUTABLE;
+		}else{
+			flags = FLAG_UPDATE_CURRENT;
+		}
 		mPermissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(
-				"com.android.example.USB_PERMISSION"), 0);
+				"com.android.example.USB_PERMISSION"), flags);
 		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
 		context.registerReceiver(mUsbReceiver, filter);
 
