@@ -4,6 +4,8 @@ import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
+import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.byteArrayToHexString;
+import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.hexStringToByteArray;
 import static com.ravenpos.ravendspreadpos.utils.StringUtils.getTransactionTesponse;
 
 import android.Manifest;
@@ -30,6 +32,7 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -43,6 +46,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.chaos.view.PinView;
 import com.dspread.xpos.CQPOSService;
 import com.dspread.xpos.EmvAppTag;
+import com.dspread.xpos.EmvCapkTag;
 import com.dspread.xpos.QPOSService;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.Gson;
@@ -51,10 +55,15 @@ import com.ravenpos.ravendspreadpos.BaseActivity;
 import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.R;
 import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
+import com.ravenpos.ravendspreadpos.network.Baas;
+
+import com.ravenpos.ravendspreadpos.pos.KSNUtilities;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
+import com.ravenpos.ravendspreadpos.utils.AppLog;
 import com.ravenpos.ravendspreadpos.utils.Constants;
 import com.ravenpos.ravendspreadpos.utils.MessagePacker;
 import com.ravenpos.ravendspreadpos.utils.RavenEmv;
+import com.ravenpos.ravendspreadpos.utils.StringUtils;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 import com.ravenpos.ravendspreadpos.utils.TransactionMessage;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
@@ -67,7 +76,15 @@ import com.ravenpos.ravendspreadpos.utils.utils.TLVParser;
 import com.ravenpos.ravendspreadpos.utils.utils.TRACE;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -78,8 +95,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.DESedeKeySpec;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
 import Decoder.BASE64Decoder;
 import Decoder.BASE64Encoder;
+
 
 public class RavenActivity extends BaseActivity implements TransactionListener {
     private MutableLiveData<String> message;
@@ -132,7 +162,11 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private String businessName;
 
     private String accountType;
+    private Baas mApiService;
 
+    private KSNUtilities ksnUtilities;
+
+    private String clearPinText;
 
 
     private void clearDisplay() {
@@ -156,7 +190,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
     @Override
     public void onBackPressed() {
-        onCompleteTransaction(getOnBackPressResponse(totalAmount));
+            onCompleteTransaction(new RuntimeException("Transaction not complete"),10);
     }
 
     @Override
@@ -166,6 +200,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         setContentView(binding.getRoot());
         Intent intent = getIntent();
         _responseCode = "00";
+        ksnUtilities = new KSNUtilities();
+       // String rr = ksnUtilities.desEncrypt("04319DCBB86B7B6E","9DFB23DC0EE3899B26DFBA372570A151");
+      // mApiService = AppUtils.getAPIService();
         if (intent != null) {
             totalAmount = intent.getDoubleExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, 0.0);
             accountType = intent.getStringExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE);
@@ -217,9 +254,15 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }
         initializeSheet(this);
         viewObserver();
-        initIntent();
-        initListener();
+       initIntent();
+       initListener();
         message.postValue(getString(R.string.connecting_bt_pos));
+        try {
+          // String gg = encryptedPinData("04319DCBB86B7B6E");
+           //String gRRg = gg;
+        } catch (Exception e) {
+            AppLog.e("encryptedPinData",e.getLocalizedMessage());
+        }
     }
 
 
@@ -227,7 +270,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
     public static boolean isUSBDetected(){
         USBClass usb = new USBClass();
-        ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getINSTANCE());
+         ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getINSTANCE());
          if(deviceList == null) return  false;else return true;
     }
 
@@ -245,7 +288,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             @Override
             public void onClick(DialogInterface dialog, int item) {
                 String selectedDevice = (String) items[item];
-
                 dialog.dismiss();
                 usbDevice = USBClass.getMdevices().get(selectedDevice);
                 open(QPOSService.CommunicationMode.USB_OTG_CDC_ACM);
@@ -257,14 +299,100 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         AlertDialog alert = builder.create();
         alert.show();
     }
+    private ArrayList list = new ArrayList();
+
+    private void initAID_CAPK(){
+
+        addCAPKVisa();
+//        addCAPKMaster();
+//
+//        addAidMaster();
+//        addAidVISA();
+       // pref.deviceIsLoaded(true);
+    }
+    private void addCAPKVisa()   {
+        ArrayList<String> visaCapk = new ArrayList<>();
+
+        visaCapk.add(EmvCapkTag.RID+"A000000004");
+        visaCapk.add(EmvCapkTag.Public_Key_Index+"00");
+        visaCapk.add(EmvCapkTag.Pk_exponent+"03");
+        visaCapk.add(EmvCapkTag.Public_Key_Module+"9E15214212F6308ACA78B80BD986AC287516846C8D548A9ED0A42E7D997C902C3E122D1B9DC30995F4E25C75DD7EE0A0CE293B8CC02B977278EF256D761194924764942FE714FA02E4D57F282BA3B2B62C9E38EF6517823F2CA831BDDF6D363D");
+        visaCapk.add(EmvCapkTag.Public_Key_CheckValue+"8BB99ADDF7B560110955014505FB6B5F8308CE27");
+        visaCapk.add(EmvCapkTag.Expired_date+"211231");
+        pos.updateEmvCAPK(QPOSService.EMVDataOperation.Add, visaCapk);
+
+    }
+
+    private void addCAPKMaster(){
+
+        list.add(EmvCapkTag.RID+"A000000003");
+        list.add(EmvCapkTag.Public_Key_Index+"08");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"D9FD6ED75D51D0E30664BD157023EAA1FFA871E4DA65672B863D255E81E137A51DE4F72BCC9E44ACE12127F87E263D3AF9DD9CF35CA4A7B01E907000BA85D24954C2FCA3074825DDD4C0C8F186CB020F683E02F2DEAD3969133F06F7845166ACEB57CA0FC2603445469811D293BFEFBAFAB57631B3DD91E796BF850A25012F1AE38F05AA5C4D6D03B1DC2E568612785938BBC9B3CD3A910C1DA55A5A9218ACE0F7A21287752682F15832A678D6E1ED0B");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"20D213126955DE205ADC2FD2822BD22DE21CF9A8");
+
+        list.add(EmvCapkTag.RID+"A000000003");
+        list.add(EmvCapkTag.Public_Key_Index+"09");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"9D912248DE0A4E39C1A7DDE3F6D2588992C1A4095AFBD1824D1BA74847F2BC4926D2EFD904B4B54954CD189A54C5D1179654F8F9B0D2AB5F0357EB642FEDA95D3912C6576945FAB897E7062CAA44A4AA06B8FE6E3DBA18AF6AE3738E30429EE9BE03427C9D64F695FA8CAB4BFE376853EA34AD1D76BFCAD15908C077FFE6DC5521ECEF5D278A96E26F57359FFAEDA19434B937F1AD999DC5C41EB11935B44C18100E857F431A4A5A6BB65114F174C2D7B59FDF237D6BB1DD0916E644D709DED56481477C75D95CDD68254615F7740EC07F330AC5D67BCD75BF23D28A140826C026DBDE971A37CD3EF9B8DF644AC385010501EFC6509D7A41");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"1FF80A40173F52D7D27E0F26A146A1C8CCB29046");
+
+        list.add(EmvCapkTag.RID+"A000000003");
+        list.add(EmvCapkTag.Public_Key_Index+"99");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"AB79FCC9520896967E776E64444E5DCDD6E13611874F3985722520425295EEA4BD0C2781DE7F31CD3D041F565F747306EED62954B17EDABA3A6C5B85A1DE1BEB9A34141AF38FCF8279C9DEA0D5A6710D08DB4124F041945587E20359BAB47B7575AD94262D4B25F264AF33DEDCF28E09615E937DE32EDC03C54445FE7E382777");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"4ABFFD6B1C51212D05552E431C5B17007D2F5E6D");
+
+
+        list.add(EmvCapkTag.RID+"A000000004");
+        list.add(EmvCapkTag.Public_Key_Index+"05");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"B8048ABC30C90D976336543E3FD7091C8FE4800DF820ED55E7E94813ED00555B573FECA3D84AF6131A651D66CFF4284FB13B635EDD0EE40176D8BF04B7FD1C7BACF9AC7327DFAA8AA72D10DB3B8E70B2DDD811CB4196525EA386ACC33C0D9D4575916469C4E4F53E8E1C912CC618CB22DDE7C3568E90022E6BBA770202E4522A2DD623D180E215BD1D1507FE3DC90CA310D27B3EFCCD8F83DE3052CAD1E48938C68D095AAC91B5F37E28BB49EC7ED597");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"EBFA0D5D06D8CE702DA3EAE890701D45E274C845");
+
+
+
+        list.add(EmvCapkTag.RID+"A000000004");
+        list.add(EmvCapkTag.Public_Key_Index+"06");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"CB26FC830B43785B2BCE37C81ED334622F9622F4C89AAE641046B2353433883F307FB7C974162DA72F7A4EC75D9D657336865B8D3023D3D645667625C9A07A6B7A137CF0C64198AE38FC238006FB2603F41F4F3BB9DA1347270F2F5D8C606E420958C5F7D50A71DE30142F70DE468889B5E3A08695B938A50FC980393A9CBCE44AD2D64F630BB33AD3F5F5FD495D31F37818C1D94071342E07F1BEC2194F6035BA5DED3936500EB82DFDA6E8AFB655B1EF3D0D7EBF86B66DD9F29F6B1D324FE8B26CE38AB2013DD13F611E7A594D675C4432350EA244CC34F3873CBA06592987A1D7E852ADC22EF5A2EE28132031E48F74037E3B34AB747F");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"F910A1504D5FFB793D94F3B500765E1ABCAD72D9");
+
+
+        list.add(EmvCapkTag.RID+"A000000004");
+        list.add(EmvCapkTag.Public_Key_Index+"00");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"9C6BE5ADB10B4BE3DCE2099B4B210672B89656EBA091204F613ECC623BEDC9C6D77B660E8BAEEA7F7CE30F1B153879A4E36459343D1FE47ACDBD41FCD710030C2BA1D9461597982C6E1BDD08554B726F5EFF7913CE59E79E357295C321E26D0B8BE270A9442345C753E2AA2ACFC9D30850602FE6CAC00C6DDF6B8D9D9B4879B2826B042A07F0E5AE526A3D3C4D22C72B9EAA52EED8893866F866387AC05A1399");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"EC0A59D35D19F031E9E8CBEC56DB80E22B1DE130");
+
+
+
+        list.add(EmvCapkTag.RID+"A000000004");
+        list.add(EmvCapkTag.Public_Key_Index+"02");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"A99A6D3E071889ED9E3A0C391C69B0B804FC160B2B4BDD570C92DD5A0F45F53E8621F7C96C40224266735E1EE1B3C06238AE35046320FD8E81F8CEB3F8B4C97B940930A3AC5E790086DAD41A6A4F5117BA1CE2438A51AC053EB002AED866D2C458FD73359021A12029A0C043045C11664FE0219EC63C10BF2155BB2784609A106421D45163799738C1C30909BB6C6FE52BBB76397B9740CE064A613FF8411185F08842A423EAD20EDFFBFF1CD6C3FE0C9821479199C26D8572CC8AFFF087A9C3");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"33408B96C814742AD73536C72F0926E4471E8E47");
+
+
+
+        list.add(EmvCapkTag.RID+"A000000004");
+        list.add(EmvCapkTag.Public_Key_Index+"04");
+        list.add(EmvCapkTag.Pk_exponent+"03");
+        list.add(EmvCapkTag.Public_Key_Module+"A6DA428387A502D7DDFB7A74D3F412BE762627197B25435B7A81716A700157DDD06F7CC99D6CA28C2470527E2C03616B9C59217357C2674F583B3BA5C7DCF2838692D023E3562420B4615C439CA97C44DC9A249CFCE7B3BFB22F68228C3AF13329AA4A613CF8DD853502373D62E49AB256D2BC17120E54AEDCED6D96A4287ACC5C04677D4A5A320DB8BEE2F775E5FEC5");
+        list.add(EmvCapkTag.Public_Key_CheckValue+"381A035DA58B482EE2AF75F4C3F2CA469BA4AA6C");
+        pos.updateEmvCAPK(QPOSService.EMVDataOperation.Add, list);
+
+    }
+
 
     private void getInitTermConfig(){
-       // pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
+       // initAID_CAPK();
+       pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
         ArrayList<String> list = new ArrayList<String>();
-        list.add(EmvAppTag.Terminal_type+"22");
-        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
-        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
-        injectDevice();
+//        list.add(EmvAppTag.Terminal_type+"22");
+//        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
+//        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
+      injectDevice();
     }
 
     private byte[] readLine(String Filename) {
@@ -393,9 +521,24 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         int lengthOfExpiryDate = 4;
         return track2Data.substring(indexOfExpiryDate, indexOfExpiryDate + lengthOfExpiryDate);
     }
-    @Override
-    public void onCompleteTransaction(TransactionResponse response) {
 
+    private String encryptPinData(String clearpinblock,String pinkey) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {
+        try {
+            byte[] clearBytes = hexStringToByteArray(clearpinblock);
+            byte[] keyBytes = hexStringToByteArray(pinkey);
+            Cipher cipher = Cipher.getInstance("DESede/ECB/NoPadding");
+            cipher.init(1,new SecretKeySpec(keyBytes,"DESede"));
+
+            byte[] encryptedBytes = cipher.doFinal(clearBytes);
+            return byteArrayToHexString(encryptedBytes);
+            //System.out.println(encryptedPinblock);
+        }catch (Exception e){
+            AppLog.e("byteArrayToHexString",e.getLocalizedMessage());
+        }
+        return "";
+    }
+    @Override
+    public void onCompleteTransaction(TransactionResponse response)  {
         RavenEmv ravenEmv = new RavenEmv();
         response.TerminaID = terminalId;
         response.totalAmoount = String.valueOf(totalAmount.intValue());
@@ -440,23 +583,39 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         msg.setField28("D00000000");
         msg.setField32(response.Track2.substring(0, 6));
         msg.setField35(response.Track2);
-
         // SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmssSSS");
         ///String pre = dateFormat.format(new Date());
         String newPre = stan.substring(stan.length() - 12);
-
+        ravenEmv.dataModel.RRN = newPre;
         msg.setField37(newPre);
         msg.setField40(getServiceCode(response.Track2));
         msg.setField41(response.TerminaID);
         msg.setField42(Mid);
         //  msg.setField42("2030LA000490601");
-        //  msg.setField43("NETOP BUSINESS SYSTEMS LA           LANG");
         msg.setField43(businessName);
         msg.setField49("566");
+        //04319DCBB86B7B6E
         if(response.PinBlock != null){
             if (!response.PinBlock.isEmpty()) {
+                String plainPin = ksnUtilities.encryptPinBlock(response.CardNo,clearPinText);
+                try {
+                    response.PinBlock  = encryptPinData(plainPin,clearPinKey);
+                } catch (InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                } catch (NoSuchPaddingException e) {
+                    throw new RuntimeException(e);
+                } catch (IllegalBlockSizeException e) {
+                    throw new RuntimeException(e);
+                } catch (BadPaddingException e) {
+                    throw new RuntimeException(e);
+                } catch (InvalidKeySpecException e) {
+                    throw new RuntimeException(e);
+                }
+                msg.setField52(response.PinBlock);
                 if(!response.PinBlock.equals("31393937")){
-                    msg.setField52(response.PinBlock);
+                   // msg.setField52(response.PinBlock);
                 }
             }
         }
@@ -475,6 +634,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         msg.setExpirydate(getExpiryDate(response.Track2));
         msg.setPan(response.CardNo);
         msg.setTid(terminalId);
+
         msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
         msg.setUnpredictable(SharedPreferencesUtils.getInstance().getStringValue("9F37", ""));
         msg.setCapabilities(SharedPreferencesUtils.getInstance().getStringValue("9F33", ""));
@@ -492,17 +652,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         msg.setAip(SharedPreferencesUtils.getInstance().getStringValue("82", ""));
 
-//        String seq =SharedPreferencesUtils.getInstance().getStringValue("5F34", "");
-//        if(!seq.equals("")){
-//
-//        }
         msg.setPanseqno(response.CardSequenceNumber);
 
-        if(response.PinBlock != null){
-            if(!response.PinBlock.equals("31393937")){
-                msg.setPinblock(response.PinBlock);
-            }
-        }
 
         msg.setClrpin(clearPinKey);
 
@@ -516,25 +667,52 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         msg.setField128(MessagePacker.generateHashData(msg));
 
         String msgToIso = new Gson().toJson(msg);
-
+        AppLog.e("msgToIso",msgToIso);
         ravenEmv.nibbsEmv = msg;
         String fullRes = new Gson().toJson(ravenEmv);
-
         Intent intent = new Intent();
-        intent.putExtra(getString(R.string.data), response);
+      //  intent.putExtra(getString(R.string.data), response);
+        intent.putExtra(getString(R.string.data), ravenEmv);
         setResult(Activity.RESULT_OK, intent);
+        finish();
+ /*
+        Call<Object> userCall = mApiService.performTransaction("98220514989004", "Horizonpay", "K11", "1.0.0", msg);
+        userCall.enqueue(new Callback<Object>() {
+            @Override
+            public void onResponse(Call<Object> call, Response<Object> res) {
+                if (res.code() == 200) {
+                    Intent intent = new Intent();
+                    intent.putExtra(getString(R.string.data), ravenEmv);
+                    setResult(Activity.RESULT_OK, intent);
+                    finish();
+//                        SharedPreferencesUtils.getInstance().setValue(SharedPreferencesUtils.KEYS, new Gson().toJson(response.body()));
+                }
+            }
+            @Override
+            public void onFailure(Call<Object> call, Throwable t) {
+                Intent intent = new Intent();
+                intent.putExtra(getString(R.string.data), response);
+                setResult(Activity.RESULT_OK, intent);
+                finish();
+                t.printStackTrace();
+            }
+        });
+  */
     }
 
     public void onCompleteTransaction(RuntimeException message, int errorcode) {
         TransactionResponse response = getTransactionTesponse(message.getMessage(), errorcode);
         RavenEmv ravenEmv = new RavenEmv();
         response.TerminaID = terminalId;
+        response.RRN = terminalId;
         response.totalAmoount = String.valueOf(totalAmount.intValue());
         response.amount = String.valueOf(totalAmount.intValue());
+        ravenEmv.dataModel = response;
         String fullRes = new Gson().toJson(ravenEmv);
         Intent intent = new Intent();
-        intent.putExtra(getString(R.string.data), response);
+        intent.putExtra(getString(R.string.data), ravenEmv);
         setResult(Activity.RESULT_OK, intent);
+        finish();
     }
 
     private  String getAccountTypeString(String code){
@@ -966,6 +1144,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             } else if (transactionResult == QPOSService.TransactionResult.TERMINATED) {
                 clearDisplay();
                 messageTextView.setText(getString(R.string.transaction_terminated));
+                onProcessingError(new RuntimeException("Transaction Terminated"),100);
             } else if (transactionResult == QPOSService.TransactionResult.DECLINED) {
                 messageTextView.setText(getString(R.string.transaction_declined));
 //                    deviceShowDisplay("DECLINED");
@@ -1187,7 +1366,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             TRACE.d("onRequestTime");
             String terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
             pos.sendTime(terminalTime);
-            message.postValue(getString(R.string.request_terminal_time) + " " + terminalTime);
+            //message.postValue(getString(R.string.request_terminal_time) + " " + terminalTime);
         }
 
         @Override
@@ -1211,7 +1390,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 msg = getString(R.string.try_another_interface);
             } else if (displayMsg == QPOSService.Display.PROCESSING) {
                 msg = getString(R.string.processing);
-
             } else if (displayMsg == QPOSService.Display.INPUT_PIN_ING) {
                 msg = "please input pin on pos";
 
@@ -1271,6 +1449,15 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         @Override
         public void onRequestQposConnected() {
+           // getInitTermConfig();
+
+          try {
+//              pos.resetQPOS();
+//              pos.resetPosStatus();
+          }catch (Exception e){
+              String tt = e.getLocalizedMessage();
+          }
+
             TRACE.d("onRequestQposConnected()");
           //  Toast.makeText(RavenActivity.this, "onRequestQposConnected", Toast.LENGTH_LONG).show();
             dismissDialog();
@@ -1289,7 +1476,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             }
           //  int keyIdex = getKeyIndex();
             pos.doTrade(30);//start do trade
-
         }
 
         @Override
@@ -1478,6 +1664,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         public void onReturnCustomConfigResult(boolean isSuccess, String result) {
             TRACE.d("onReturnCustomConfigResult(boolean isSuccess, String result):" + isSuccess + TRACE.NEW_LINE + result);
             message.postValue("result: " + isSuccess + "\ndata: " + result);
+            onCompleteTransaction(new RuntimeException("Emv successfully injected"),100);
         }
 
         @Override
@@ -1512,11 +1699,11 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             dialog.setContentView(R.layout.pin_dialog);
             dialog.setTitle(getString(R.string.enter_pin));
             dialog.findViewById(R.id.confirmButton).setOnClickListener(new View.OnClickListener() {
-
                 @Override
                 public void onClick(View v) {
                     String pin = ((EditText) dialog.findViewById(R.id.pinEditText)).getText().toString();
-                    if (pin.length() >= 4 && pin.length() <= 12) {
+                    if (pin.length() >= 4 && pin.length() < 12) {
+                        clearPinText = pin;
 //                        if (pin.equals("000000")) {
 //                            pos.sendEncryptPin("5516422217375116");
 //

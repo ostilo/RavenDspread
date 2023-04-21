@@ -27,5 +27,5 @@ public class TransactionResponse implements Serializable {
     public String totalAmoount;
     public String TerminaID;
     public  String IccData;
-
+    public  String RRN;
 }

@@ -10,13 +10,11 @@
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@android:style/Animation</item>
-
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
     </style>
 
-    <style name="NewDialog" parent="@style/Theme.AppCompat.Translucent.NoTitleBar">
-        <item name="android:windowIsFloating">true</item>
-        <item name="android:windowContentOverlay">@null</item>
-    </style>
+
     <!-- Base application theme. -->
     <style name="Theme.TerminalMobileAndroid" parent="Theme.MaterialComponents.Light.NoActionBar.Bridge">
         <!-- Primary brand color. -->
@@ -70,27 +68,8 @@
     </style>
 
 
-    <style name="material_button" parent="@style/Widget.MaterialComponents.Button.UnelevatedButton">
-        <item name="addElevationShadow">false</item>
-        <item name="android:textAllCaps">false</item>
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">@dimen/dp_45</item>
-        <item name="android:layout_marginTop">@dimen/dp_20</item>
-        <item name="android:elevation">@dimen/dp_0</item>
-        <item name="android:fontFamily">@font/proxima_nova_bold</item>
-        <item name="android:textColor">@color/white</item>
-        <item name="cardElevation">@dimen/dp_0</item>
-        <item name="android:background">@drawable/corner_background</item>
-    </style>
 
     <style name="Theme.RavenDspread.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="Theme.RavenDspread.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
-
-    <style name="Theme.RavenDspread.NoActionBar">
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
-    </style>
-
-
 </resources>
