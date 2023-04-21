@@ -4,7 +4,7 @@
     <string name="data">data</string>
     <string name="audio">Audio</string>
     <string name="bdk">0123456789ABCDEFFEDCBA9876543210</string>
-
+    <string name="app_name">Raven</string>
     <string name="serial_port">Serial port</string>
     <string name="normal_bluetooth">Normal Blutooth</string>
     <string name="other_blu">BLE Blutooth</string>

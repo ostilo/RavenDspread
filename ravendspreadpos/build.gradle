@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -52,28 +53,51 @@ android {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
 
+    //implementation fileTree(dir: "libs", include: ["*.jar"])
+
     implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.24'
 
     //Dspread SDK
     implementation 'com.iqiyi.xcrash:xcrash-android-lib:2.4.6'
     implementation 'com.binioter:guideview:1.0.0'
-    implementation files('libs\\zxing.jar')
+    implementation files('libs/zxing.jar')
    // implementation 'org.jetbrains:annotations-java5:15.0'
-    implementation files('libs\\dspread_android_printer_sdk_1.1.jar')
-    implementation files('libs\\dspread_pos_sdk_3.9.9.jar')
+   implementation files('libs/dspread_android_printer_sdk_1.1.jar'){
+     
+   }
+    implementation files('libs/dspread_pos_sdk_3.9.9.jar'){
 
-    implementation files('libs\\gson-2.2.2.jar')
-    implementation files('libs\\mpaysdk.jar')
+    }
+    //implementation 'com.google.code.gson:gson:2.9.0'
 
+
+    //  implementation files('libs\\gson-2.2.2.jar')
+    implementation files('libs/mpaysdk.jar')
+
+  //  implementation 'com.google.code.gson:gson:2.9.0'
 
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.8.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.navigation:navigation-fragment:2.5.3'
     implementation 'androidx.navigation:navigation-ui:2.5.3'
+    implementation 'androidx.core:core-ktx:1.10.0'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     implementation 'com.chaos.view:pinview:1.4.2'
+
+    //Networks
+
+    api 'com.squareup.retrofit2:retrofit:2.5.0'
+    // api 'com.google.code.gson:gson:2.8.5'
+   // api 'com.squareup.retrofit2:converter-gson:2.5.0'
+    api 'io.reactivex:rxjava:1.1.6'
+    api 'io.reactivex:rxandroid:1.2.1'
+    api 'com.squareup.retrofit2:adapter-rxjava:2.1.0'
+    api 'com.squareup.okhttp3:logging-interceptor:3.11.0'
+    api 'com.squareup.okhttp3:okhttp:3.14.0'
+    api 'com.squareup.retrofit2:converter-scalars:2.3.0'
+    implementation 'com.android.support:multidex:1.0.3'
 
 }

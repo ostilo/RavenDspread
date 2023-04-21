@@ -10,13 +10,11 @@
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@android:style/Animation</item>
-
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
     </style>
 
-    <style name="NewDialog" parent="@style/Theme.AppCompat.Translucent.NoTitleBar">
-        <item name="android:windowIsFloating">true</item>
-        <item name="android:windowContentOverlay">@null</item>
-    </style>
+
     <!-- Base application theme. -->
     <style name="Theme.TerminalMobileAndroid" parent="Theme.MaterialComponents.Light.NoActionBar.Bridge">
         <!-- Primary brand color. -->
@@ -86,11 +84,4 @@
     <style name="Theme.RavenDspread.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="Theme.RavenDspread.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
-
-    <style name="Theme.RavenDspread.NoActionBar">
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
-    </style>
-
-
 </resources>

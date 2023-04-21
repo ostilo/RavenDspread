@@ -3,6 +3,8 @@ package com.ravenpos.ravendspreadpos;
 import android.app.Application;
 import android.content.Context;
 
+import com.ravenpos.ravendspreadpos.utils.AppLog;
+
 import xcrash.XCrash;
 
 public class BaseApplication extends Application {
@@ -13,12 +15,12 @@ public class BaseApplication extends Application {
     public void onCreate() {
         super.onCreate();
         INSTANCE = this;
+        AppLog.debug(true);
     }
 
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
-
         //  Default init
         XCrash.init(this);
     }
