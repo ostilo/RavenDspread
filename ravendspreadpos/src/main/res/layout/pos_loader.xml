@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:orientation="vertical"
     android:layout_height="match_parent">
-    <ScrollView android:id="@+id/parentScrollview"
+    <androidx.core.widget.NestedScrollView android:id="@+id/parentScrollview"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
@@ -18,7 +18,24 @@
                 android:layout_gravity="center_horizontal"
                 android:visibility="gone" />
 
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/lv_indicator_BTPOS"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:cacheColorHint="@android:color/transparent"
+                    android:divider="#FFA0A0A0"
+                    android:dividerHeight="1dp"
+                    android:listSelector="#00FFFFFF"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:scrollbars="none"
+                    android:visibility="gone" />
+
+            </RelativeLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -114,6 +131,6 @@
 
         </LinearLayout>
 
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
 </LinearLayout>

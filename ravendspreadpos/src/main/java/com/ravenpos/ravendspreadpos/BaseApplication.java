@@ -8,7 +8,7 @@ import com.ravenpos.ravendspreadpos.utils.AppLog;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
-import xcrash.XCrash;
+//import xcrash.XCrash;
 
 public class BaseApplication extends Application {
 
@@ -37,7 +37,7 @@ public class BaseApplication extends Application {
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
         //  Default init
-        XCrash.init(this);
+       // XCrash.init(this);
 //        OkGo.getInstance().init(this);
 //        initXHttp();
 //

@@ -15,11 +15,12 @@ import com.google.android.material.button.MaterialButton;
 /**
  * Created by AYODEJI on 05/15/2023.
  */
-public  class BaseActivity extends AppCompatActivity {
+public   class BaseActivity extends AppCompatActivity {
 
     private BottomSheetDialog cancelDialog;
     private Button btnContinue;
     private final String LOG_TAG = BaseActivity.class.getSimpleName();
+
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {

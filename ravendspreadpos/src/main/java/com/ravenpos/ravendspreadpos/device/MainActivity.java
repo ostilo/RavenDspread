@@ -154,9 +154,11 @@ public class MainActivity extends BaseActivity {
         m_Adapter.setListData(data);
     }
 
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.pos_loader);
         //When the window is visible to the user, keep the device normally open and keep the brightness unchanged
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         initView();
@@ -183,9 +185,9 @@ public class MainActivity extends BaseActivity {
     }
 
     private void initView() {
-        imvAnimScan = (ImageView) findViewById(R.id.img_anim_scanbt);
-        animScan = (AnimationDrawable) getResources().getDrawable(R.drawable.progressanmi);
-        imvAnimScan.setBackgroundDrawable(animScan);
+//        imvAnimScan = (ImageView) findViewById(R.id.img_anim_scanbt);
+//        animScan = (AnimationDrawable) getResources().getDrawable(R.drawable.progressanmi);
+//        imvAnimScan.setBackgroundDrawable(animScan);
 
         mafireLi = (LinearLayout) findViewById(R.id.mifareid);
         mafireUL = (LinearLayout) findViewById(R.id.ul_ll);
@@ -232,7 +234,7 @@ public class MainActivity extends BaseActivity {
 
         NestedScrollView parentScrollView = (NestedScrollView) findViewById(R.id.parentScrollview);
         parentScrollView.smoothScrollTo(0, 0);
-       // m_ListView = (RecyclerView) findViewById(R.id.lv_indicator_BTPOS);
+        m_ListView = (RecyclerView) findViewById(R.id.lv_indicator_BTPOS);
         mKeyIndex = ((EditText) findViewById(R.id.keyindex));
         btnBT.post(new Runnable() {
             @Override
@@ -262,8 +264,8 @@ public class MainActivity extends BaseActivity {
             public void onItemClick(int position, Map<String, ?> itemdata) {
                 onBTPosSelected(itemdata);
                 m_ListView.setVisibility(View.GONE);
-                animScan.stop();
-                imvAnimScan.setVisibility(View.GONE);
+//                animScan.stop();
+//                imvAnimScan.setVisibility(View.GONE);
             }
         });
 
@@ -1655,8 +1657,8 @@ public class MainActivity extends BaseActivity {
             if (arg0 != null && arg0.getName() != null) {
                 TRACE.d("onDeviceFound(BluetoothDevice arg0):" + arg0.getName() + ":" + arg0.toString());
                 m_ListView.setVisibility(View.VISIBLE);
-                animScan.start();
-                imvAnimScan.setVisibility(View.VISIBLE);
+//                animScan.start();
+//                imvAnimScan.setVisibility(View.VISIBLE);
                 if (m_Adapter != null) {
                     Map<String, Object> itm = new HashMap<String, Object>();
                     itm.put("ICON", arg0.getBondState() == BluetoothDevice.BOND_BONDED ? Integer
@@ -1704,8 +1706,8 @@ public class MainActivity extends BaseActivity {
         public void onRequestDeviceScanFinished() {
             TRACE.d("onRequestDeviceScanFinished()");
             Toast.makeText(MainActivity.this, R.string.scan_over, Toast.LENGTH_LONG).show();
-            animScan.stop();
-            imvAnimScan.setVisibility(View.GONE);
+//            animScan.stop();
+//            imvAnimScan.setVisibility(View.GONE);
         }
 
         @Override
@@ -2283,8 +2285,8 @@ public class MainActivity extends BaseActivity {
                 } else {
                     pos.startScanQposBLE(6);
                 }
-                animScan.start();
-                imvAnimScan.setVisibility(View.VISIBLE);
+//                animScan.start();
+//                imvAnimScan.setVisibility(View.VISIBLE);
                 refreshAdapter();
                 if (m_Adapter != null) {
                     TRACE.d("+++++=" + m_Adapter);

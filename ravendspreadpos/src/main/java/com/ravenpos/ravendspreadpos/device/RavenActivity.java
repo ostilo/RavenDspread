@@ -43,7 +43,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 
-import com.chaos.view.PinView;
+//import com.chaos.view.PinView;
 import com.dspread.xpos.CQPOSService;
 import com.dspread.xpos.EmvAppTag;
 import com.dspread.xpos.EmvCapkTag;
@@ -141,7 +141,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
     private String deviceSignCert;
     private BottomSheetDialog pinDialog;
-    private PinView txtUserPin;
+   // private PinView txtUserPin;
 
     private RavenActivity.POS_TYPE posType = RavenActivity.POS_TYPE.BLUETOOTH;
     int flags = 0;
@@ -253,7 +253,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 //        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
 //          //  initAID_CAPK();
 //        }
-        initializeSheet(this);
+        //initializeSheet(this);
         viewObserver();
        initIntent();
        initListener();
@@ -476,12 +476,12 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }
     }
 
-    private void initializeSheet(Context context){
-        pinDialog = new BottomSheetDialog(context);
-        pinDialog.setContentView(R.layout.transaction_pinview);
-        txtUserPin = pinDialog.findViewById(R.id.txtTaxPayerIdPIn);
-        assert txtUserPin != null;
-    }
+//    private void initializeSheet(Context context){
+//        pinDialog = new BottomSheetDialog(context);
+//        pinDialog.setContentView(R.layout.transaction_pinview);
+//        txtUserPin = pinDialog.findViewById(R.id.txtTaxPayerIdPIn);
+//        assert txtUserPin != null;
+//    }
 
 
     @Override
@@ -1682,6 +1682,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             TRACE.i("onRequestSetPin()");
 
            // pinDialog.show();
+       /*
             txtUserPin.addTextChangedListener(new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -1703,6 +1704,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
                 }
             });
+        */
 
 
             dialog = new Dialog(RavenActivity.this);
