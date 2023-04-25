@@ -29,7 +29,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -40,11 +43,12 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 
-//import com.chaos.view.PinView;
+import com.chaos.view.PinView;
 import com.dspread.xpos.CQPOSService;
 import com.dspread.xpos.EmvAppTag;
 import com.dspread.xpos.EmvCapkTag;
 import com.dspread.xpos.QPOSService;
+import com.dspread.xpos.Tlv;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.Gson;
 import com.pnsol.sdk.miura.emv.EmvTags;
@@ -137,7 +141,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
     private String deviceSignCert;
     private BottomSheetDialog pinDialog;
-    //private PinView txtUserPin;
+    private PinView txtUserPin;
 
     private RavenActivity.POS_TYPE posType = RavenActivity.POS_TYPE.BLUETOOTH;
     int flags = 0;
@@ -246,10 +250,10 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }else{
             flags = FLAG_UPDATE_CURRENT;
         }
-        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
-          //  initAID_CAPK();
-        }
-       // initializeSheet(this);
+//        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+//          //  initAID_CAPK();
+//        }
+        initializeSheet(this);
         viewObserver();
        initIntent();
        initListener();
@@ -384,12 +388,16 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
     private void getInitTermConfig(){
        // initAID_CAPK();
-      // pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
-       // ArrayList<String> list = new ArrayList<String>();
+        try{
+            pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
+        }catch (Exception ex){
+            AppLog.e("getInitTermConfig", ex.getLocalizedMessage());
+        }
+        //ArrayList<String> list = new ArrayList<String>();
 //        list.add(EmvAppTag.Terminal_type+"22");
 //        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
 //        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
-      injectDevice();
+     // injectDevice();
     }
 
     private byte[] readLine(String Filename) {
@@ -469,10 +477,10 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     }
 
     private void initializeSheet(Context context){
-        //pinDialog = new BottomSheetDialog(context);
-       // pinDialog.setContentView(R.layout.transaction_pinview);
-      //  txtUserPin = pinDialog.findViewById(R.id.txtTaxPayerIdPIn);
-       // assert txtUserPin != null;
+        pinDialog = new BottomSheetDialog(context);
+        pinDialog.setContentView(R.layout.transaction_pinview);
+        txtUserPin = pinDialog.findViewById(R.id.txtTaxPayerIdPIn);
+        assert txtUserPin != null;
     }
 
 
@@ -534,12 +542,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }
         return "";
     }
-
-//    @Override
-//    public void onCompleteTransaction(TransactionResponse response){
-//
-//    }
-
     @Override
     public void onCompleteTransaction(TransactionResponse response)  {
         RavenEmv ravenEmv = new RavenEmv();
@@ -618,7 +620,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 }
                 msg.setField52(response.PinBlock);
                 if(!response.PinBlock.equals("31393937")){
-                    // msg.setField52(response.PinBlock);
+                   // msg.setField52(response.PinBlock);
                 }
             }
         }
@@ -657,7 +659,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         msg.setPanseqno(response.CardSequenceNumber);
 
-
         msg.setClrpin(clearPinKey);
 
         msg.setAccount(getAccountTypeString(accountType));
@@ -674,7 +675,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         ravenEmv.nibbsEmv = msg;
         String fullRes = new Gson().toJson(ravenEmv);
         Intent intent = new Intent();
-        //  intent.putExtra(getString(R.string.data), response);
+      //  intent.putExtra(getString(R.string.data), response);
         intent.putExtra(getString(R.string.data), ravenEmv);
         setResult(Activity.RESULT_OK, intent);
         finish();
@@ -703,9 +704,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
   */
     }
 
-    /*
-
- */
     public void onCompleteTransaction(RuntimeException message, int errorcode) {
         TransactionResponse response = getTransactionTesponse(message.getMessage(), errorcode);
         RavenEmv ravenEmv = new RavenEmv();
@@ -792,8 +790,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         super.onDestroy();
         TRACE.d("onDestroy");
         if (pos != null) {
-            close();
-            pos = null;
+            //close();
+            //pos = null;
         }
     }
 
@@ -964,16 +962,16 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                     cardNo = maskedPAN;
                     String realPan = null;
                     if (!TextUtils.isEmpty(trackksn) && !TextUtils.isEmpty(encTrack2)) {
-                        String clearPan = DUKPK2009_CBC.getDate(trackksn, encTrack2, DUKPK2009_CBC.Enum_key.DATA, DUKPK2009_CBC.Enum_mode.CBC);
-                        content += "encTrack2:" + " " + clearPan + "\n";
-                        realPan = clearPan.substring(0, maskedPAN.length());
-                        content += "realPan:" + " " + realPan + "\n";
+//                        String clearPan = DUKPK2009_CBC.getDate(trackksn, encTrack2, DUKPK2009_CBC.Enum_key.DATA, DUKPK2009_CBC.Enum_mode.CBC);
+//                        content += "encTrack2:" + " " + clearPan + "\n";
+//                        realPan = clearPan.substring(0, maskedPAN.length());
+//                        content += "realPan:" + " " + realPan + "\n";
                     }
                     if (!TextUtils.isEmpty(pinKsn) && !TextUtils.isEmpty(pinBlock) && !TextUtils.isEmpty(realPan)) {
-                        String date = DUKPK2009_CBC.getDate(pinKsn, pinBlock, DUKPK2009_CBC.Enum_key.PIN, DUKPK2009_CBC.Enum_mode.CBC);
-                        String parsCarN = "0000" + realPan.substring(realPan.length() - 13, realPan.length() - 1);
-                        String s = DUKPK2009_CBC.xor(parsCarN, date);
-                        content += "PIN:" + " " + s + "\n";
+//                        String date = DUKPK2009_CBC.getDate(pinKsn, pinBlock, DUKPK2009_CBC.Enum_key.PIN, DUKPK2009_CBC.Enum_mode.CBC);
+//                        String parsCarN = "0000" + realPan.substring(realPan.length() - 13, realPan.length() - 1);
+//                        String s = DUKPK2009_CBC.xor(parsCarN, date);
+//                        content += "PIN:" + " " + s + "\n";
                     }
                 }
                 message.postValue(content);
@@ -1288,9 +1286,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             });
             dialog.show();
           */
-
         }
-
         @Override
         public void onRequestSetAmount() {
             TRACE.d("input amount -- S");
@@ -1307,12 +1303,20 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             pos.isServerConnected(true);
         }
 
+        private void getPinBlock(String str){
+            HashMap<Integer, Tlv> tlvList2 = pos.getTag(str);
+            for(Tlv tlv : tlvList2.values()){
+                if(tlv.getTag().equals("C7"))
+                    PINBLOCK = tlv.getValue();
+            }
+        }
         @Override
         public void onRequestOnlineProcess(final String tlv) {
             TRACE.d("onRequestOnlineProcess" + tlv);
             TLV = tlv;
             tagList = getTags();
             ICCDATA = getICCTags();
+            getPinBlock(tlv);
             if (isPinCanceled) {
                 pos.sendOnlineProcessResult(null);
             }
@@ -1374,7 +1378,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             pos.sendTime(terminalTime);
             //message.postValue(getString(R.string.request_terminal_time) + " " + terminalTime);
         }
-
+//579160EE59A49BE7
         @Override
         public void onRequestDisplay(QPOSService.Display displayMsg) {
             TRACE.d("onRequestDisplay(Display displayMsg):" + displayMsg.toString());
@@ -1390,7 +1394,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 builder.show();
             } else if (displayMsg == QPOSService.Display.PLEASE_WAIT) {
                 msg = getString(R.string.wait);
-               // onRequestSetPin();
             } else if (displayMsg == QPOSService.Display.REMOVE_CARD) {
                 msg = getString(R.string.remove_card);
             } else if (displayMsg == QPOSService.Display.TRY_ANOTHER_INTERFACE) {
@@ -1398,7 +1401,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             } else if (displayMsg == QPOSService.Display.PROCESSING) {
                 msg = getString(R.string.processing);
             } else if (displayMsg == QPOSService.Display.INPUT_PIN_ING) {
-                msg = "please input pin on poƒs";
+                msg = "please input pin on pos";
 
             } else if (displayMsg == QPOSService.Display.INPUT_OFFLINE_PIN_ONLY || displayMsg == QPOSService.Display.INPUT_LAST_OFFLINE_PIN) {
                 msg = "please input offline pin on pos";
@@ -1433,6 +1436,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                         dialog.dismiss();
                     }
                 });
+
                 dialog.findViewById(R.id.cancelButton).setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -1456,8 +1460,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         @Override
         public void onRequestQposConnected() {
-         //  getInitTermConfig();
-
+            //getInitTermConfig();
           try {
 //              pos.resetQPOS();
 //              pos.resetPosStatus();
@@ -1479,7 +1482,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             if (ActivityCompat.checkSelfPermission(RavenActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     != PERMISSION_GRANTED) {
                 //申请权限
-                //ActivityCompat.requestPermissions(RavenActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
+                ActivityCompat.requestPermissions(RavenActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
             }
           //  int keyIdex = getKeyIndex();
             pos.doTrade(30);//start do trade
@@ -1666,7 +1669,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 message.postValue("update work key packet len error");
             }
         }
-
+//XML does not match device version
         @Override
         public void onReturnCustomConfigResult(boolean isSuccess, String result) {
             TRACE.d("onReturnCustomConfigResult(boolean isSuccess, String result):" + isSuccess + TRACE.NEW_LINE + result);
@@ -1679,7 +1682,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             TRACE.i("onRequestSetPin()");
 
            // pinDialog.show();
-/*
             txtUserPin.addTextChangedListener(new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -1702,7 +1704,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 }
             });
 
- */
 
             dialog = new Dialog(RavenActivity.this);
             dialog.setContentView(R.layout.pin_dialog);

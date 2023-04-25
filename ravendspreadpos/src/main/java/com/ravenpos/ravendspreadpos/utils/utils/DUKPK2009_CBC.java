@@ -19,18 +19,18 @@ public class DUKPK2009_CBC {
     }
 
     /*
-    * ksnV:ksn
-    * datastrV:data
-    * Enum_key:Encryption/Decryption
-    * Enum_mode
-    *
-    * */
-    public static String getDate(String ksnV, String datastrV, Enum_key key, Enum_mode mode) {
+     * ksnV:ksn
+     * datastrV:data
+     * Enum_key:Encryption/Decryption
+     * Enum_mode
+     *
+     * */
+    public static String getData(String ksnV, String datastrV, Enum_key key, Enum_mode mode) {
 
-        return getDate(ksnV, datastrV, key, mode, null);
+        return getData(ksnV, datastrV, key, mode, null);
     }
 
-    public static String getDate(String ksnV, String datastrV, Enum_key key, Enum_mode mode, String clearIpek) {
+    public static String getData(String ksnV, String datastrV, Enum_key key, Enum_mode mode, String clearIpek) {
         //		// TODO Auto-generated method stub
         String ksn = ksnV;
         String datastr = datastrV;
@@ -306,7 +306,7 @@ public class DUKPK2009_CBC {
 
     /*
      * 3DES encryption
-    **/
+     **/
     public static byte[] TriDesEncryption(byte[] byteKey, byte[] dec) {
 
         try {
@@ -340,7 +340,7 @@ public class DUKPK2009_CBC {
 
     /*
      * 3DES decryption CBC
-    **/
+     **/
     public static byte[] TriDesDecryptionCBC(byte[] byteKey, byte[] dec) {
         byte[] en_key = new byte[24];
         if (byteKey.length == 16) {
@@ -378,7 +378,7 @@ public class DUKPK2009_CBC {
 
     /*
      * 3DES decryption ECB
-    **/
+     **/
     public static byte[] TriDesDecryptionECB(byte[] byteKey, byte[] dec) {
         // private String TriDesDecryption(String dnc_key, byte[] dec){
         // byte[] byteKey = parseHexStr2Byte(dnc_key);
@@ -421,7 +421,7 @@ public class DUKPK2009_CBC {
 
     /*
      * convert hexadecimal string to byte array
-    **/
+     **/
     public static byte[] parseHexStr2Byte(String hexStr) {
         if (hexStr.length() < 1)
             return null;
@@ -436,8 +436,8 @@ public class DUKPK2009_CBC {
     }
 
     /*
-    * convert byte array to hexadecimal string
-    **/
+     * convert byte array to hexadecimal string
+     **/
     public static String parseByte2HexStr(byte buf[]) {
         StringBuffer sb = new StringBuffer();
         for (int i = 0; i < buf.length; i++) {
@@ -452,7 +452,7 @@ public class DUKPK2009_CBC {
 
     /*
      * data fill
-    **/
+     **/
     public static String dataFill(String dataStr) {
         int len = dataStr.length();
         if (len % 16 != 0) {
