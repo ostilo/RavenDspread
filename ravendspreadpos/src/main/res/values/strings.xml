@@ -98,6 +98,7 @@
     <string name="firmware_version">Firmware Version: </string>
     <string name="usb">USB: </string>
     <string name="charge">Charge: </string>
+    <string name="bootloader_version">Bootloader Version: </string>
     <string name="battery_level">Battery ADC: </string>
     <string name="hardware_version">Hardware Version: </string>
     <string name="supported_track">Supported Track: </string>

@@ -1,14 +1,10 @@
 package com.ravenpos.ravendspreadpos.device;
 
-import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.PendingIntent;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -27,34 +23,22 @@ import android.os.Looper;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
-import android.view.ViewGroup.MarginLayoutParams;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.annotation.Keep;
-import androidx.core.app.ActivityCompat;
-
 import com.dspread.xpos.CQPOSService;
-import com.dspread.xpos.LogFileConfig;
 import com.dspread.xpos.QPOSService;
 import com.dspread.xpos.QPOSService.CommunicationMode;
 import com.dspread.xpos.QPOSService.Display;
@@ -67,16 +51,13 @@ import com.dspread.xpos.QPOSService.TransactionType;
 import com.dspread.xpos.QPOSService.UpdateInformationResult;
 import com.ravenpos.ravendspreadpos.BaseActivity;
 import com.ravenpos.ravendspreadpos.R;
-import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
-import com.ravenpos.ravendspreadpos.utils.MySharedPreference;
-import com.ravenpos.ravendspreadpos.utils.TransactionListener;
+import com.ravenpos.ravendspreadpos.pos.BluetoothAdapter;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
 import com.ravenpos.ravendspreadpos.utils.utils.DUKPK2009_CBC;
 import com.ravenpos.ravendspreadpos.utils.utils.FileUtils;
 import com.ravenpos.ravendspreadpos.utils.utils.ParseASN1Util;
 import com.ravenpos.ravendspreadpos.utils.utils.QPOSUtil;
 import com.ravenpos.ravendspreadpos.utils.utils.TRACE;
-
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -89,19 +70,25 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import Decoder.BASE64Decoder;
 import Decoder.BASE64Encoder;
+import androidx.core.app.ActivityCompat;
+import androidx.core.widget.NestedScrollView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-public class MainActivity extends BaseActivity implements TransactionListener {
+import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+
+public class MainActivity extends BaseActivity {
     private QPOSService pos;
     private UpdateThread updateThread;
     private UsbDevice usbDevice;
     private Spinner cmdSp;
+    private RecyclerView m_ListView;
     private EditText statusEditText, blockAdd, status, status11, block_address11;
     private EditText mhipStatus;
-    private MyListViewAdapter m_Adapter = null;
+    private BluetoothAdapter m_Adapter = null;
     private ImageView imvAnimScan;
     private AnimationDrawable animScan;
     private ListView appListView;
@@ -139,239 +126,47 @@ public class MainActivity extends BaseActivity implements TransactionListener {
     private String deviceSignCert;
 
     private POS_TYPE posType = POS_TYPE.BLUETOOTH;
-
-    private BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
-
-    private MySharedPreference pref;
-
-    @Override
-    public void onProcessingError(RuntimeException message, int errorcode) {
-
-    }
-
-    @Override
-    public void onCompleteTransaction(TransactionResponse response) {
-
-    }
+    private boolean isVisiblePosID;
 
     private enum POS_TYPE {
         BLUETOOTH, AUDIO, UART, USB, OTG, BLUETOOTH_BLE
     }
 
-    private void onBTPosSelected(Activity activity,int index, String blueTootchAddress,String blueTitle ) {
+    private void onBTPosSelected(Map<String, ?> itemdata) {
         if (isNormalBlu) {
             pos.stopScanQPos2Mode();
         } else {
             pos.stopScanQposBLE();
         }
         start_time = new Date().getTime();
-    //    Map<String, ?> dev = (Map<String, ?>) m_Adapter.getItem(index);
-        this.blueTootchAddress = blueTootchAddress;
-        this.blueTitle = blueTitle;
-        this. blueTitle = this.blueTitle.split("\\(")[0];
+        Map<String, ?> dev = (Map<String, ?>) itemdata;
+        blueTootchAddress = (String) dev.get("ADDRESS");
+        blueTitle = (String) dev.get("TITLE");
+        blueTitle = blueTitle.split("\\(")[0];
         sendMsg(1001);
     }
 
-    protected List<Map<String, ?>> generateAdapterData() {
-        if (isNormalBlu) {
-            lstDevScanned = pos.getDeviceList();
-            TRACE.i("=====" + lstDevScanned.size());
-        } else {
-            lstDevScanned = pos.getBLElist();
+    private void refreshAdapter() {
+        if (m_Adapter != null) {
+            m_Adapter.clearData();
         }
-        TRACE.d("lstDevScanned----" + lstDevScanned);
-        List<Map<String, ?>> data = new ArrayList<Map<String, ?>>();
-        for (BluetoothDevice dev : lstDevScanned) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return data;
-            }
-            if (dev.getName() == null) {
-                continue;
-            }
-            TRACE.i("++++++++++");
-            Map<String, Object> itm = new HashMap<String, Object>();
-            itm.put("ICON",
-                    dev.getBondState() == BluetoothDevice.BOND_BONDED ? Integer
-                            .valueOf(R.drawable.bluetooth_blue) : Integer
-                            .valueOf(R.drawable.bluetooth_blue_unbond));
-            itm.put("TITLE", dev.getName() + "(" + dev.getAddress() + ")");
-            itm.put("ADDRESS", dev.getAddress());
-            data.add(itm);
-        }
-        return data;
-    }
-
-    private class MyListViewAdapter extends BaseAdapter {
-        private List<Map<String, ?>> m_DataMap;
-        private LayoutInflater m_Inflater;
-
-        public void clearData() {
-            m_DataMap.clear();
-            m_DataMap = null;
-        }
-
-        public void addData(Map<String, ?> map) {
-            m_DataMap.add(map);
-        }
-
-        public MyListViewAdapter(Context context, List<Map<String, ?>> map) {
-            this.m_DataMap = map;
-            this.m_Inflater = LayoutInflater.from(context);
-        }
-
-        @Override
-        public int getCount() {
-            return m_DataMap.size();
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return m_DataMap.get(position);
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @Override
-        public View getView(final int position, View convertView,
-                            ViewGroup parent) {
-            if (convertView == null) {
-                convertView = m_Inflater.inflate(R.layout.bt_qpos_item, null);
-            }
-            ImageView m_Icon = (ImageView) convertView
-                    .findViewById(R.id.item_iv_icon);
-            TextView m_TitleName = (TextView) convertView
-                    .findViewById(R.id.item_tv_lable);
-            Map<String, ?> itemdata = (Map<String, ?>) m_DataMap.get(position);
-            int idIcon = (Integer) itemdata.get("ICON");
-            String sTitleName = (String) itemdata.get("TITLE");
-            m_Icon.setBackgroundResource(idIcon);
-            m_TitleName.setText(sTitleName);
-            return convertView;
-        }
-    }
-
-    /*
-     * set listview's height
-     **/
-    public void setListViewHeightBasedOnChildren(ListView listView) {
-        ListAdapter listAdapter = listView.getAdapter();
-        if (listAdapter == null) {
-            return;
-        }
-        int totalHeight = 0;
-        for (int i = 0; i < listAdapter.getCount(); i++) {
-            View listItem = listAdapter.getView(i, null, listView);
-            listItem.measure(0, 0);
-            totalHeight += listItem.getMeasuredHeight();
-        }
-        ViewGroup.LayoutParams params = listView.getLayoutParams();
-        params.height = totalHeight
-                + (listView.getDividerHeight() * (listAdapter.getCount() - 1));
-        ((MarginLayoutParams) params).setMargins(10, 10, 10, 10);
-        listView.setLayoutParams(params);
+        ArrayList<Map<String, ?>> data = new ArrayList<>();
+        m_Adapter.setListData(data);
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.pos_loader);
-        int tt = R.layout.activity_main;
         //When the window is visible to the user, keep the device normally open and keep the brightness unchanged
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        pref = new MySharedPreference(this);
         initView();
         initIntent();
         initListener();
     }
-    private void initListener() {
-        MyOnClickListener myOnClickListener = new MyOnClickListener();
-        //btn click
-        doTradeButton.setOnClickListener(myOnClickListener);
-
-        btnBT.setOnClickListener(myOnClickListener);
-        btnDisconnect.setOnClickListener(myOnClickListener);
-        btnUSB.setOnClickListener(myOnClickListener);
-        updateFwBtn.setOnClickListener(myOnClickListener);
-        btnQuickEMV.setOnClickListener(myOnClickListener);
-        pollBtn.setOnClickListener(myOnClickListener);
-        pollULbtn.setOnClickListener(myOnClickListener);
-        finishBtn.setOnClickListener(myOnClickListener);
-        finishULBtn.setOnClickListener(myOnClickListener);
-        readBtn.setOnClickListener(myOnClickListener);
-        writeBtn.setOnClickListener(myOnClickListener);
-        veriftBtn.setOnClickListener(myOnClickListener);
-        veriftULBtn.setOnClickListener(myOnClickListener);
-        operateCardBtn.setOnClickListener(myOnClickListener);
-        getULBtn.setOnClickListener(myOnClickListener);
-        readULBtn.setOnClickListener(myOnClickListener);
-        fastReadUL.setOnClickListener(myOnClickListener);
-        writeULBtn.setOnClickListener(myOnClickListener);
-        transferBtn.setOnClickListener(myOnClickListener);
-    }
-
-
-    @Keep
-    private void proceedToPayment() {
-        try {
-            if (!btAdapter.isEnabled()) {
-                btAdapter.enable();
-                Thread.sleep(2000);
-            }
-            String macAddress = pref.getLastMacAddress();
-            selectBluetoothDevice(this, this);
-            if (macAddress == null)
-                Toast.makeText(this,"",Toast.LENGTH_SHORT);
-               // selectBluetoothDevice(this, this);
-            else Toast.makeText(this,"",Toast.LENGTH_SHORT);
-             //   startEmV(macAddress, this, this);
-        } catch (Exception e) {
-        }
-    }
-
-    @Keep
-    private void selectBluetoothDevice(final Activity accountTypeActivity, final TransactionListener listener) {
-        @SuppressLint("MissingPermission") final Set<BluetoothDevice> pairedBTDevices = btAdapter.getBondedDevices();
-        List<String> deviceNames = getDeviceNames(pairedBTDevices);
-        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, deviceNames);
-        AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
-        alertDialog.setAdapter(adapter, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                String btDevice = ((BluetoothDevice) pairedBTDevices.toArray()[which]).getAddress();
-                String btDeviceName = ((BluetoothDevice) pairedBTDevices.toArray()[which]).getName();
-                pref.setLastMacAddress(btDevice);
-                onBTPosSelected(MainActivity.this, which,btDevice,btDeviceName);
-               // startEmV(btDevice, accountTypeActivity, listener);
-            }
-        });
-        alertDialog.setTitle("Select Bluetooth Device");
-        alertDialog.show();
-    }
-
-    @SuppressLint("MissingPermission")
-    @Keep
-    private List<String> getDeviceNames(Set<BluetoothDevice> pairedBTDevices) {
-        List<String> temp = new ArrayList<>();
-        for (BluetoothDevice device : pairedBTDevices) {
-            temp.add(device.getName());
-        }
-        return temp;
-    }
 
     private void initIntent() {
         Intent intent = getIntent();
-        type = intent.getIntExtra("connect_type", 3);
+        type = intent.getIntExtra("connect_type", 0);
         switch (type) {
             case 3://normal bluetooth
                 btnBT.setVisibility(View.VISIBLE);
@@ -388,14 +183,12 @@ public class MainActivity extends BaseActivity implements TransactionListener {
     }
 
     private void initView() {
-        doTradeButton = this.findViewById(R.id.doTradeButton);//start to do trade
-
-        imvAnimScan = findViewById(R.id.img_anim_scanbt);
+        imvAnimScan = (ImageView) findViewById(R.id.img_anim_scanbt);
         animScan = (AnimationDrawable) getResources().getDrawable(R.drawable.progressanmi);
         imvAnimScan.setBackgroundDrawable(animScan);
 
-        mafireLi = findViewById(R.id.mifareid);
-        mafireUL = findViewById(R.id.ul_ll);
+        mafireLi = (LinearLayout) findViewById(R.id.mifareid);
+        mafireUL = (LinearLayout) findViewById(R.id.ul_ll);
         status = (EditText) findViewById(R.id.status);
         status11 = (EditText) findViewById(R.id.status11);
 
@@ -416,6 +209,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         String[] keyClass = new String[]{"Key A", "Key B"};
         ArrayAdapter<String> spinneradapter = new ArrayAdapter<String>(MainActivity.this, android.R.layout.simple_spinner_item, keyClass);
         mafireSpinner.setAdapter(spinneradapter);
+        doTradeButton = (Button) findViewById(R.id.doTradeButton);//start to do trade
         statusEditText = (EditText) findViewById(R.id.statusEditText);
         mhipStatus = (findViewById(R.id.chipStatus));
         btnBT = (Button) findViewById(R.id.btnBT);//start to scan bluetooth device
@@ -436,12 +230,67 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         writeULBtn = (Button) findViewById(R.id.write_ul);
         transferBtn = (Button) findViewById(R.id.transfer_card);
 
-        ScrollView parentScrollView = (ScrollView) findViewById(R.id.parentScrollview);
+        NestedScrollView parentScrollView = (NestedScrollView) findViewById(R.id.parentScrollview);
         parentScrollView.smoothScrollTo(0, 0);
+       // m_ListView = (RecyclerView) findViewById(R.id.lv_indicator_BTPOS);
         mKeyIndex = ((EditText) findViewById(R.id.keyindex));
-
+        btnBT.post(new Runnable() {
+            @Override
+            public void run() {
+               // showGuideView.show(btnBT, MainActivity.this, getString(R.string.msg_select_device));
+            }
+        });
+      //  showGuideView.setListener(this);
     }
 
+    private void initListener() {
+        LinearLayoutManager manager = new LinearLayoutManager(this);
+        manager.setOrientation(LinearLayoutManager.VERTICAL);
+        m_ListView.setLayoutManager(manager);
+        m_ListView.setLayoutManager(new LinearLayoutManager(this) {
+            @Override
+            public boolean canScrollVertically() {
+                return false;
+            }
+        });
+        if (m_Adapter == null) {
+            m_Adapter = new BluetoothAdapter(MainActivity.this, null);
+        }
+        m_ListView.setAdapter(m_Adapter);
+        m_Adapter.setOnBluetoothItemClickListener(new BluetoothAdapter.OnBluetoothItemClickListener() {
+            @Override
+            public void onItemClick(int position, Map<String, ?> itemdata) {
+                onBTPosSelected(itemdata);
+                m_ListView.setVisibility(View.GONE);
+                animScan.stop();
+                imvAnimScan.setVisibility(View.GONE);
+            }
+        });
+
+
+        MyOnClickListener myOnClickListener = new MyOnClickListener();
+        //btn click
+        doTradeButton.setOnClickListener(myOnClickListener);
+        btnBT.setOnClickListener(myOnClickListener);
+        btnDisconnect.setOnClickListener(myOnClickListener);
+        btnUSB.setOnClickListener(myOnClickListener);
+        updateFwBtn.setOnClickListener(myOnClickListener);
+        btnQuickEMV.setOnClickListener(myOnClickListener);
+        pollBtn.setOnClickListener(myOnClickListener);
+        pollULbtn.setOnClickListener(myOnClickListener);
+        finishBtn.setOnClickListener(myOnClickListener);
+        finishULBtn.setOnClickListener(myOnClickListener);
+        readBtn.setOnClickListener(myOnClickListener);
+        writeBtn.setOnClickListener(myOnClickListener);
+        veriftBtn.setOnClickListener(myOnClickListener);
+        veriftULBtn.setOnClickListener(myOnClickListener);
+        operateCardBtn.setOnClickListener(myOnClickListener);
+        getULBtn.setOnClickListener(myOnClickListener);
+        readULBtn.setOnClickListener(myOnClickListener);
+        fastReadUL.setOnClickListener(myOnClickListener);
+        writeULBtn.setOnClickListener(myOnClickListener);
+        transferBtn.setOnClickListener(myOnClickListener);
+    }
 
     public static String getDigitalEnvelopStr(String encryptData, String encryptDataWith3des, String keyType, String clearData, String signData, String IV) {
         int encryptDataLen = (encryptData.length() / 2);
@@ -494,10 +343,18 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         } else if (posType == POS_TYPE.AUDIO) {
             pos.closeAudio();
         } else if (posType == POS_TYPE.BLUETOOTH) {
-            pos.disconnectBT();
+            try {
+                pos.disconnectBT();
+            } catch (Exception e) {
+            }
 //			pos.disConnectBtPos();
         } else if (posType == POS_TYPE.BLUETOOTH_BLE) {
-            pos.disconnectBLE();
+            try {
+                pos.disconnectBLE();
+            } catch (Exception e) {
+
+            }
+
         } else if (posType == POS_TYPE.UART) {
             pos.closeUart();
         } else if (posType == POS_TYPE.USB) {
@@ -507,44 +364,9 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         }
     }
 
-    @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-     /*
-        // MenuItem audioitem = menu.findItem(R.id.audio_test);
-        if (pos != null) {
-            if (pos.getAudioControl()) {
-                audioitem.setTitle(R.string.audio_open);
-            } else {
-                audioitem.setTitle(R.string.audio_close);
-            }
-        } else {
-            audioitem.setTitle(R.string.audio_unknow);
-        }
-      */
-        return super.onPrepareOptionsMenu(menu);
-    }
+
 
     MenuItem audioitem = null;
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        return true;
-      /*
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.activity_main, menu);
-        audioitem = menu.findItem(R.id.audio_test);
-        if (pos != null) {
-            if (pos.getAudioControl()) {
-                audioitem.setTitle("Audio Control : Open");
-            } else {
-                audioitem.setTitle("Audio Control : Close");
-            }
-        } else {
-            audioitem.setTitle("Audio Control : Check");
-        }
-        return true;
-       */
-    }
 
     class UpdateThread extends Thread {
         private boolean concelFlag = false;
@@ -595,145 +417,6 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         }
     }
 
-    /*
-        @SuppressLint("StringFormatMatches")
-        @Override
-        public boolean onOptionsItemSelected(MenuItem item) {
-            TRACE.d("onOptionsItemSelected");
-            if (pos == null) {
-                Toast.makeText(getApplicationContext(), "Device Disconnect", Toast.LENGTH_LONG).show();
-                return true;
-            } else if (item.getItemId() == R.id.reset_qpos) {
-                boolean a = pos.resetPosStatus();
-                if (a) {
-                    statusEditText.setText("pos reset");
-                }
-            }   else if (item.getItemId() == R.id.doTradeLogOperation) {
-                pos.doTradeLogOperation(DoTransactionType.GetAll, 0);
-            } else if (item.getItemId() == R.id.get_update_key) {//get the key value
-                pos.getUpdateCheckValue();
-            } else if (item.getItemId() == R.id.get_device_public_key) {//get the key value
-                pos.getDevicePublicKey(5);
-            } else if (item.getItemId() == R.id.set_sleepmode_time) {//set pos sleep mode time
-    //            0~Integer.MAX_VALUE
-                pos.setSleepModeTime(20);//the time is in 10s and 10000s
-            } else if (item.getItemId() == R.id.set_shutdowm_time) {
-                pos.setShutDownTime(15 * 60);
-            }else if(item.getItemId() == R.id.menu_exchange_cert){//inject key remotely
-                statusEditText.setText("Exchange Certificates the device with server...");
-                pos.getDeviceSigningCertificate();
-            }else if(item.getItemId() == R.id.menu_init_key_loading){//inject key remotely
-                statusEditText.setText("is go to init the keys loading...");
-                if(deviceSignCert != null){
-                    String deviceNonce = ParseASN1Util.generateNonce();
-                    verifySignatureCommand = getString(R.string.pedk_command,"10",deviceNonce,"1");
-                    String rkmsNonce = "04916CCC6289600A55118FC37AF0999E";
-                    String requestSignatureData = "000A"+deviceNonce+rkmsNonce+"01";
-                    // use device key to sign the data, and get the sign data in callback onReturnAnalyseDigEnvelop
-                    pos.analyseDigEnvelop(QPOSService.AnalyseDigEnvelopMode.SIGNATURE_ENV,requestSignatureData,20);
-                }
-            }else if(item.getItemId() == R.id.menu_confirm_key_type){//inject key remotely
-                String deviceNonce = ParseASN1Util.generateNonce();
-                String keyNameASN1 = "301802010131133011130a4473707265616442444b0201001300";
-                pedvVerifySignatureCommand = getString(R.string.pedv_command,keyNameASN1,deviceNonce,"1");
-                String rkmsNonce = "04916CCC6289600A55118FC37AF0999E";
-                String requestSignatureData = keyNameASN1+deviceNonce+rkmsNonce+"01";
-                //the api calback is onReturnAnalyseDi
-                // gEnvelop
-                pos.analyseDigEnvelop(QPOSService.AnalyseDigEnvelopMode.SIGNATURE_ENV,requestSignatureData,20);
-
-            }else if(item.getItemId() == R.id.init_device){
-                try {
-                    String publicKeyStr = QPOSUtil.readRSANStream(getAssets().open("FX-Dspread-signed.pem"));
-                    BASE64Decoder base64Decoder = new BASE64Decoder();
-                    byte[] buffer = base64Decoder.decodeBuffer(publicKeyStr);
-                    String deviceCert = QPOSUtil.byteArray2Hex(buffer);
-                    String scertChain= QPOSUtil.byteArray2Hex(base64Decoder.decodeBuffer(QPOSUtil.readRSANStream(getAssets().open("FX-Dspread-CA-Tree.pem"))));
-                    //the api callback is onReturnStoreCertificatesResult
-                    isInitKey = true;
-                    pos.loadCertificates(deviceCert,scertChain);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                statusEditText.setText("Init key...");
-            }
-            //update ipek
-            else if (item.getItemId() == R.id.updateIPEK) {
-                int keyIndex = getKeyIndex();
-                String ipekGrop = "0" + keyIndex;
-                pos.doUpdateIPEKOperation(
-                        ipekGrop, "09118012400705E00000", "C22766F7379DD38AA5E1DA8C6AFA75AC", "B2DE27F60A443944",
-                        "09118012400705E00000", "C22766F7379DD38AA5E1DA8C6AFA75AC", "B2DE27F60A443944",
-                        "09118012400705E00000", "C22766F7379DD38AA5E1DA8C6AFA75AC", "B2DE27F60A443944");
-            } else if (item.getItemId() == R.id.getSleepTime) {
-                pos.getShutDownTime();
-            }  else if (item.getItemId() == R.id.updateEMVAPP) {
-                statusEditText.setText("updating emvapp...");
-                String appTLV = "9F0610000000000000000000000000000000005F2A0201565F3601009F01060000000000009F090200969F150200009F161e3030303030303030303030303030303030303030303030303030303030309F1A0201569F1B04000000009F1C0800000000000000009F1E0800000000000000009F33032009C89F3501229F3901009F3C0201569F3D01009F4005F000F0A0019F4E0f0000000000000000000000000000009F6604300040809F7B06000000001388DF010101DF11050000000000DF12050000000000DF13050000000000DF1400DF150400000000DF160100DF170100DF1906000000001388DF2006999999999999DF2106000000020000DF7208F4F0F0FAAFFE8000DF730101DF74010FDF750101DF7600DF7806000000020000DF7903E0F8C8DF7A05F000F0A001DF7B00";
-                pos.updateEmvAPPByTlv(EMVDataOperation.Add, appTLV);
-
-            } else if (item.getItemId() == R.id.updateEMVCAPK) {
-                statusEditText.setText("updating emvcapk...");
-                String capkTLV = "9F0605A0000003339F22010BDF0281f8CF9FDF46B356378E9AF311B0F981B21A1F22F250FB11F55C958709E3C7241918293483289EAE688A094C02C344E2999F315A72841F489E24B1BA0056CFAB3B479D0E826452375DCDBB67E97EC2AA66F4601D774FEAEF775ACCC621BFEB65FB0053FC5F392AA5E1D4C41A4DE9FFDFDF1327C4BB874F1F63A599EE3902FE95E729FD78D4234DC7E6CF1ABABAA3F6DB29B7F05D1D901D2E76A606A8CBFFFFECBD918FA2D278BDB43B0434F5D45134BE1C2781D157D501FF43E5F1C470967CD57CE53B64D82974C8275937C5D8502A1252A8A5D6088A259B694F98648D9AF2CB0EFD9D943C69F896D49FA39702162ACB5AF29B90BADE005BC157DF0314BD331F9996A490B33C13441066A09AD3FEB5F66CDF0403000003DF050420311222DF060101DF070101";
-                pos.updateEmvCAPKByTlv(EMVDataOperation.Add, capkTLV);
-
-            } else if (item.getItemId() == R.id.setBuzzer) {
-                pos.doSetBuzzerOperation(3);//set buzzer
-            } else if (item.getItemId() == R.id.menu_get_deivce_info) {
-                statusEditText.setText(R.string.getting_info);
-                pos.getQposInfo();
-            } else if (item.getItemId() == R.id.menu_get_deivce_key_checkvalue) {
-                statusEditText.setText("get_deivce_key_checkvalue..............");
-                int keyIdex = getKeyIndex();
-                pos.getKeyCheckValue(keyIdex, QPOSService.CHECKVALUE_KEYTYPE.DUKPT_MKSK_ALLTYPE);
-            } else if (item.getItemId() == R.id.menu_get_pos_id) {
-                pos.getQposId();
-                statusEditText.setText(R.string.getting_pos_id);
-            } else if (item.getItemId() == R.id.setMasterkey) {
-                //key:0123456789ABCDEFFEDCBA9876543210
-                //result；0123456789ABCDEFFEDCBA9876543210
-                int keyIndex = getKeyIndex();
-                pos.setMasterKey("1A4D672DCA6CB3351FD1B02B237AF9AE", "08D7B4FB629D0885", keyIndex);
-            } else if (item.getItemId() == R.id.menu_get_pin) {
-                statusEditText.setText(R.string.input_pin);
-                pos.getPin(1, 0, 6, "please input pin", "622262XXXXXXXXX4406", "", 20);
-            } else if (item.getItemId() == R.id.isCardExist) {
-                pos.isCardExist(30);
-            } else if (item.getItemId() == R.id.menu_operate_mafire) {
-                statusEditText.setText("operate mafire card");
-                showSingleChoiceDialog();
-            } else if (item.getItemId() == R.id.menu_operate_update) {
-                if (updateFwBtn.getVisibility() == View.VISIBLE || btnQuickEMV.getVisibility() == View.VISIBLE  ) {
-                    updateFwBtn.setVisibility(View.GONE);
-                    btnQuickEMV.setVisibility(View.GONE);
-                } else {
-                    updateFwBtn.setVisibility(View.VISIBLE);
-                    btnQuickEMV.setVisibility(View.VISIBLE);
-                }
-            } else if (item.getItemId() == R.id.resetSessionKey) {
-                //key：0123456789ABCDEFFEDCBA9876543210
-                //result：0123456789ABCDEFFEDCBA9876543210
-                int keyIndex = getKeyIndex();
-                pos.updateWorkKey(
-                        "1A4D672DCA6CB3351FD1B02B237AF9AE", "08D7B4FB629D0885",//PIN KEY
-                        "1A4D672DCA6CB3351FD1B02B237AF9AE", "08D7B4FB629D0885",  //TRACK KEY
-                        "1A4D672DCA6CB3351FD1B02B237AF9AE", "08D7B4FB629D0885", //MAC KEY
-                        keyIndex, 5);
-            } else if(item.getItemId() == R.id.updateFirmWare) {
-                isUpdateFw = true;
-                pos.getUpdateCheckValue();
-            } else if (item.getItemId() == R.id.cusDisplay) {
-                deviceShowDisplay("test info");
-            } else if (item.getItemId() == R.id.closeDisplay) {
-                pos.lcdShowCloseDisplay();
-            } else if (item.getItemId()==R.id.updateEMVByXml){
-                statusEditText.setText("updating...");
-                pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",MainActivity.this)));
-            }
-            return true;
-        }
-
-     */
     @Override
     public void onPause() {
         super.onPause();
@@ -742,10 +425,10 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             if (pos != null) {
                 if (isNormalBlu) {
                     //stop to scan bluetooth
-                  //  pos.stopScanQPos2Mode();
+                   // pos.stopScanQPos2Mode();
                 } else {
                     //stop to scan ble
-                  //  pos.stopScanQposBLE();
+                   // pos.stopScanQposBLE();
                 }
             }
         }
@@ -765,6 +448,36 @@ public class MainActivity extends BaseActivity implements TransactionListener {
     }
 
     private int yourChoice = 0;
+
+    private void showSingleChoiceDialog() {
+        final String[] items = {"Mifare classic 1", "Mifare UL"};
+//	    yourChoice = -1;
+        AlertDialog.Builder singleChoiceDialog =
+                new AlertDialog.Builder(MainActivity.this);
+        singleChoiceDialog.setTitle("please select one");
+        // The second parameter is default
+        singleChoiceDialog.setSingleChoiceItems(items, 0,
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        yourChoice = which;
+                    }
+                });
+        singleChoiceDialog.setPositiveButton("OK",
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (yourChoice == 0) {
+                            mafireLi.setVisibility(View.VISIBLE);//display m1 mafire card
+                            mafireUL.setVisibility(View.GONE);//display ul mafire card
+                        } else if (yourChoice == 1) {
+                            mafireLi.setVisibility(View.GONE);
+                            mafireUL.setVisibility(View.VISIBLE);
+                        }
+                    }
+                });
+        singleChoiceDialog.show();
+    }
 
     public void dismissDialog() {
         if (dialog != null) {
@@ -794,7 +507,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             String cardNo = "";
             if (result == DoTradeResult.NONE) {
                 statusEditText.setText(getString(R.string.no_card_detected));
-            } else if (result == DoTradeResult.TRY_ANOTHER_INTERFACE) {
+            } else if (result == QPOSService.DoTradeResult.TRY_ANOTHER_INTERFACE) {
                 statusEditText.setText(getString(R.string.try_another_interface));
             } else if (result == DoTradeResult.ICC) {
                 statusEditText.setText(getString(R.string.icc_card_inserted));
@@ -892,21 +605,20 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                     cardNo = maskedPAN;
                     String realPan = null;
                     if (!TextUtils.isEmpty(trackksn) && !TextUtils.isEmpty(encTrack2)) {
-                        String clearPan = DUKPK2009_CBC.getDate(trackksn, encTrack2, DUKPK2009_CBC.Enum_key.DATA, DUKPK2009_CBC.Enum_mode.CBC);
+                        String clearPan = DUKPK2009_CBC.getData(trackksn, encTrack2, DUKPK2009_CBC.Enum_key.DATA, DUKPK2009_CBC.Enum_mode.CBC);
                         content += "encTrack2:" + " " + clearPan + "\n";
                         realPan = clearPan.substring(0, maskedPAN.length());
                         content += "realPan:" + " " + realPan + "\n";
                     }
                     if (!TextUtils.isEmpty(pinKsn) && !TextUtils.isEmpty(pinBlock) && !TextUtils.isEmpty(realPan)) {
-                        String date = DUKPK2009_CBC.getDate(pinKsn, pinBlock, DUKPK2009_CBC.Enum_key.PIN, DUKPK2009_CBC.Enum_mode.CBC);
+                        String date = DUKPK2009_CBC.getData(pinKsn, pinBlock, DUKPK2009_CBC.Enum_key.PIN, DUKPK2009_CBC.Enum_mode.CBC);
                         String parsCarN = "0000" + realPan.substring(realPan.length() - 13, realPan.length() - 1);
                         String s = DUKPK2009_CBC.xor(parsCarN, date);
                         content += "PIN:" + " " + s + "\n";
                     }
                 }
                 statusEditText.setText(content);
-            }
-            else if ((result == DoTradeResult.NFC_ONLINE) || (result == DoTradeResult.NFC_OFFLINE)) {
+            } else if ((result == DoTradeResult.NFC_ONLINE) || (result == DoTradeResult.NFC_OFFLINE)) {
                 nfcLog = decodeData.get("nfcLog");
                 String content = getString(R.string.tap_card);
                 String formatID = decodeData.get("formatID");
@@ -1004,8 +716,6 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                             + "\n";
                     cardNo = maskedPAN;
                 }
-                // pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,1,1,"5F20") // get plaintext or ciphertext 5F20 tag
-                // pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,1,2,"5F205F24") // get plaintext or ciphertext 5F20 and 5F24 tag
                 statusEditText.setText(content);
                 sendMsg(8003);
             } else if ((result == DoTradeResult.NFC_DECLINED)) {
@@ -1034,7 +744,10 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                     : posInfoData.get("PCI_firmwareVersion");
             String pciHardwareVersion = posInfoData.get("PCI_hardwareVersion") == null ? ""
                     : posInfoData.get("PCI_hardwareVersion");
+            String compileTime = posInfoData.get("compileTime") == null ? ""
+                    : posInfoData.get("compileTime");
             String content = "";
+            content += getString(R.string.bootloader_version) + bootloaderVersion + "\n";
             content += getString(R.string.firmware_version) + firmwareVersion + "\n";
             content += getString(R.string.usb) + isUsbConnected + "\n";
             content += getString(R.string.charge) + isCharging + "\n";
@@ -1050,11 +763,12 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             content += getString(R.string.track_3_supported) + isSupportedTrack3 + "\n";
             content += "PCI FirmwareVresion:" + pciFirmwareVersion + "\n";
             content += "PCI HardwareVersion:" + pciHardwareVersion + "\n";
+            content += "compileTime:" + compileTime + "\n";
             statusEditText.setText(content);
         }
 
         /**
-         * @see QPOSService.QPOSServiceListener#onRequestTransactionResult(TransactionResult)
+         * @see com.dspread.xpos.QPOSService.QPOSServiceListener#onRequestTransactionResult(com.dspread.xpos.QPOSService.TransactionResult)
          */
         @Override
         public void onRequestTransactionResult(TransactionResult transactionResult) {
@@ -1166,7 +880,12 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             content += "conn: " + pos.getBluetoothState() + "\n";
             content += "psamId: " + psamId + "\n";
             content += "NFCId: " + NFCId + "\n";
-            statusEditText.setText(content);
+            if (!isVisiblePosID) {
+                statusEditText.setText(content);
+            } else {
+                isVisiblePosID = false;
+               // BaseApplication.setmPosID(posId);
+            }
         }
 
         @Override
@@ -1223,7 +942,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             ((Spinner) dialog.findViewById(R.id.transactionTypeSpinner)).setAdapter(new ArrayAdapter<String>(MainActivity.this, android.R.layout.simple_spinner_item,
                     transactionTypes));
 
-            dialog.findViewById(R.id.setButton).setOnClickListener(new OnClickListener() {
+            dialog.findViewById(R.id.setButton).setOnClickListener(new View.OnClickListener() {
 
                 @Override
                 public void onClick(View v) {
@@ -1278,7 +997,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 }
 
             });
-            dialog.findViewById(R.id.cancelButton).setOnClickListener(new OnClickListener() {
+            dialog.findViewById(R.id.cancelButton).setOnClickListener(new View.OnClickListener() {
 
                 @Override
                 public void onClick(View v) {
@@ -1292,7 +1011,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         }
 
         /**
-         * @see QPOSService.QPOSServiceListener#onRequestIsServerConnected()
+         * @see com.dspread.xpos.QPOSService.QPOSServiceListener#onRequestIsServerConnected()
          */
         @Override
         public void onRequestIsServerConnected() {
@@ -1322,8 +1041,6 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-//            pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,0,1,"5F20") // get plaintext or ciphertext tag
-//            pos.getICCTag(QPOSService.EncryptType.PLAINTEXT,0,2,"5F205F24") // get plaintext or ciphertext 5F20 and 5F24 tag
             dialog.findViewById(R.id.confirmButton).setOnClickListener(
                     new OnClickListener() {
 
@@ -1454,6 +1171,9 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 //申请权限
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
             }
+            isVisiblePosID = true;
+            pos.getQposId();
+
         }
 
         @Override
@@ -1534,34 +1254,6 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onReturnServerCertResult(String serverSignCert, String serverEncryptCert) {
             super.onReturnServerCertResult(serverSignCert, serverEncryptCert);
-//            String pedkResponse = "[AOPEDK;ANY;KN0;KB30819D0201013181973081941370413031313242315458303045303130304B5331384646464630303030303030303031453030303030414332313038323435443442443733373445443932464142363838373438314544363034344137453635433239463132393739383931384441394434353631443235324143414641020102040AFFFF0000000001E00000020100130A4473707265616442444B04021D58;KA0D0B2F2F3178D4045C1363274890494664B23D32BABEA47E5DB42F15C06816107FD293BAFF7371119F0B11B685A29D40DE78D397F9629A56112629452A9525F5261F8BDCA168328C49ACCFF0133C90E91AFCCA1E18178EBBA5E0BFA054B09514BA87EE05F2E4837D2C74E00BFD3B14EB708598517F357F79AA34C89DFEA9F59B6D3CECABA6C211809400DE9D0B0CA09384FDD834B8BFD416C4B09D32B3F5E45001F18E5C3116A0FFD8E0C6ACE567FCCE1AC909FD038FB58F16BB32163866CD9DCB4B131A394757638111B2CF3DC968D58CBAA95279BEFF697C0D92C6A42248B53A3E56E595AD128EDB50710BDBFFCB113A7DC4ECBCE8668482CBFD22CD7B2E42;RDB077A03C07C94F161842AA0C4831E0EF;CE1;AP308205A906092A864886F70D010702A082059A30820596020149310D300B06096086480165030402013082032506092A864886F70D010703A082031604820312020100318201FB308201F70201003081A830819C310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A56697274754372797074311B3019060355040C0C12447370726561642044657669636573204341311B301906035504410C12447370726561642044657669636573204341311B301906035504030C1244737072656164204465766963657320434102074EB0D600009880304306092A864886F70D0101073036300B0609608648016503040201301806092A864886F70D010108300B0609608648016503040201300D06092A864886F70D01010904000482010092583A07F6280625EE4CA043E3245F2CD6CCA8BAE6E198F4046A5DDE055723D2591A84DDCA4D7F7BB1B179881FD9EC4E33ED22333A9008DAEB3C3B1D7143D1953F2363BEA4C0D2592667C3468F228F856A95A6DCA1FA9CA0AB05D25DC612E7E2BF2AE3012D22C78BB7224C8C8E02146929937C3DF9FA3589B2A486C132477ACFA50BE09528FCBFDA43079AF54C050843BE4BDE701D246D8D8A4C947F12AFD97A66010459BBAE4ED627F687CC3E6DC30B5B35FE3564D9FB07F501B57A73A70AB9C3398E14391B16A5FE45C374984219F0B3A3265A82D3F5A48CEEF3998DCEA59F1CC5821B51605C66C8FD2687778C84B51CCE51C1FBFA876F978E0A9546C425FF3082010C06092A864886F70D010701301406082A864886F70D03070408C8FA8F2094E103118081E85816DF38AEC7C0E569C011DB7212278A767C8934770C7E994E9508E256B693973FBB4B47A78A9F6B1AB2D326CC2A76A53E3731B8A8128B1DE4BEDCCA51E0E740C1A474C21C8CF4A4726F4FBE0DC5CE41C4DB7A2CDBB2EF7B2C0F61B50E34A1A327A5069EB23524DB0D8119C4C407B90277B806288ECAC2826AF8AF6D092B29E90C03554986F38345B6BB247BC1498C2185661BDE318ADECAF199E798D70A058305F686ECC3A267D28EED6052483401EB5B5B84F897CAEA7968B8EEAB23F465CE3F1E7F7F7E402D1AA681D76D34CF9EC0B6BBBE9A513B8C42E5EA5319E218AC996F87767966DBD8F8318202573082025302014930819C308190310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A5669727475437279707431173015060355040C0C0E44737072656164204B44482043413117301506035504410C0E44737072656164204B44482043413117301506035504030C0E44737072656164204B444820434102074EB0D60000987E300B0609608648016503040201A0818E301806092A864886F70D010903310B06092A864886F70D0107033020060A2A864886F70D01091903311204104CDCEDD916AAACEEAE548A1C5B0A0EAA301F06092A864886F70D0107013112041041303031364B30544E30304530303030302F06092A864886F70D01090431220420A0E06A133DA8D4A5EC5A2E51E468B470B19E13834019A0C2563BA39308660A1F300D06092A864886F70D0101010500048201003BA0F51DC5B3400E5CD29429663008713C3B61DE0C053590296421635218AEB228A1802C971B18CCF0A137D66FE07B08A0B2A592F11557CC401C353C859E1B82C4BAE146F8AC2955BD1326A3482B173E5589B321FBA0517DCA071F120D0940DC7B8CD33C861E1403CCBD7C3203F1609D261D38B415A0BF234CC9370D18B1004D89BE4C7C4631C7A5D3A1010F0371E25F70B8000D5B94C946571D0F6A730DEF57950AED18839B38B0FF6497D03E960194CF3F113C57575F62E8299FCDE855A1BD36ECE5CAF3DC9F942387A76A329715EC09FDBED3C4FACA06160D538EC00D0166D46152D61F6C665F749E91A0E70E532CE726525B946ACD81510FF47146F00994;]";
-//            String KA = ParseASN1Util.parseToken(pedkResponse,"KA");
-//            String AP = ParseASN1Util.parseToken(pedkResponse,"AP");
-//            KB =  ParseASN1Util.parseToken(pedkResponse,"KB");
-//            ParseASN1Util.getServerPubkey(serverSignCert);
-//            String publickStr = ParseASN1Util.getPublicKey();
-//            String raSe = ParseASN1Util.getPublicKey().substring(publickStr.length()-6);
-//            publickStr = publickStr.substring(29);
-//            PublicKey publicKey = QPOSUtil.getPublicKey(publickStr,raSe);
-//            String signatureData = "";
-//            boolean verifyResult = pos.verifySignWithPubKey(publicKey,QPOSUtil.HexStringToByteArray(KA),signatureData);
-//            verifyResult = true;
-//            if(verifyResult) {
-//                ParseASN1Util.parseASN1new(AP.replace("A081", "3081"));
-//                String nonce = ParseASN1Util.getNonce();
-//                String header = ParseASN1Util.getHeader();
-//                String digist = ParseASN1Util.getDigest();
-//                String encryptData = ParseASN1Util.getEncryptData();
-//                ParseASN1Util.parseASN1new(encryptData.substring(6));
-//                String signData = ParseASN1Util.getSignData();
-//                String encryptDataWith3des = ParseASN1Util.getEncryptDataWith3Des();
-//                String IV = ParseASN1Util.getIVStr();
-//                String clearData = "A0818e301806092a864886f70d010903310b06092a864886f70d0107033020060a2a864886f70d01091903311204104cdcedd916aaaceeae548a1c5b0a0eaa301f06092a864886f70d0107013112041041303031364b30544e30304530303030302f06092a864886f70d01090431220420a0e06a133da8d4a5ec5a2e51e468b470b19e13834019a0c2563ba39308660a1f";
-//                String envelop = getDigitalEnvelopStr(encryptData,encryptDataWith3des,"01",clearData,signData,IV);
-//                pos.loadSessionKeyByTR_34(envelop);
-//            }else {
-//                statusEditText.setText("PEDK signature verification failed.");
-//            }
         }
 
         @Override
@@ -1754,7 +1446,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onUpdatePosFirmwareResult(UpdateInformationResult arg0) {
             TRACE.d("onUpdatePosFirmwareResult(UpdateInformationResult arg0):" + arg0.toString());
-            isUpdateFw = false;
+//            isUpdateFw = false;
             if (arg0 != UpdateInformationResult.UPDATE_SUCCESS) {
                 updateThread.concelSelf();
             } else {
@@ -1957,36 +1649,29 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             TRACE.d("onBluetoothBoardStateResult(boolean arg0):" + arg0);
         }
 
+        @SuppressLint("MissingPermission")
         @Override
         public void onDeviceFound(BluetoothDevice arg0) {
-
             if (arg0 != null && arg0.getName() != null) {
-                proceedToPayment();
-
-               /*
                 TRACE.d("onDeviceFound(BluetoothDevice arg0):" + arg0.getName() + ":" + arg0.toString());
                 m_ListView.setVisibility(View.VISIBLE);
                 animScan.start();
                 imvAnimScan.setVisibility(View.VISIBLE);
                 if (m_Adapter != null) {
                     Map<String, Object> itm = new HashMap<String, Object>();
-                    itm.put("ICON",
-                            arg0.getBondState() == BluetoothDevice.BOND_BONDED ? Integer
-                                    .valueOf(R.drawable.bluetooth_blue) : Integer
-                                    .valueOf(R.drawable.bluetooth_blue_unbond));
+                    itm.put("ICON", arg0.getBondState() == BluetoothDevice.BOND_BONDED ? Integer
+                            .valueOf(R.drawable.bluetooth_blue) : Integer
+                            .valueOf(R.drawable.bluetooth_blue_unbond));
                     itm.put("TITLE", arg0.getName() + "(" + arg0.getAddress() + ")");
                     itm.put("ADDRESS", arg0.getAddress());
-                    m_Adapter.addData(itm);
-                    m_Adapter.notifyDataSetChanged();
+                    m_Adapter.setData(itm);
                 }
                 String address = arg0.getAddress();
                 String name = arg0.getName();
                 name += address + "\n";
                 statusEditText.setText(name);
                 TRACE.d("found new device" + name);
-                */
-            }
-            else {
+            } else {
                 statusEditText.setText("Don't found new device");
                 TRACE.d("Don't found new device");
             }
@@ -2019,15 +1704,17 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         public void onRequestDeviceScanFinished() {
             TRACE.d("onRequestDeviceScanFinished()");
             Toast.makeText(MainActivity.this, R.string.scan_over, Toast.LENGTH_LONG).show();
+            animScan.stop();
+            imvAnimScan.setVisibility(View.GONE);
         }
 
         @Override
         public void onRequestUpdateKey(String arg0) {
             TRACE.d("onRequestUpdateKey(String arg0):" + arg0);
             mhipStatus.setText("update checkvalue : " + arg0);
-            if(isUpdateFw){
-                updateFirmware();
-            }
+//            if(isUpdateFw){
+//                updateFirmware();
+//            }
         }
 
         @Override
@@ -2197,7 +1884,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 String cardData = arg0.get("cardData");
                 statusEditText.setText("addr:" + addr + "\ncardDataLen:" + cardDataLen + "\ncardData:" + cardData);
             } else {
-				statusEditText.setText("onReadWriteMifareCardResult fail");
+                statusEditText.setText("onReadWriteMifareCardResult fail");
             }
         }
 
@@ -2364,38 +2051,38 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         }
 
         @Override
-        public  void onReturnDeviceCSRResult(String re) {
-            TRACE.d("onReturnDeviceCSRResult:"+re);
-            statusEditText.setText("onReturnDeviceCSRResult:"+re);
+        public void onReturnDeviceCSRResult(String re) {
+            TRACE.d("onReturnDeviceCSRResult:" + re);
+            statusEditText.setText("onReturnDeviceCSRResult:" + re);
         }
 
         @Override
-        public  void onReturnStoreCertificatesResult(boolean re) {
-            TRACE.d("onReturnStoreCertificatesResult:"+re);
-            if(isInitKey){
-                statusEditText.setText("Init key result is :"+re);
+        public void onReturnStoreCertificatesResult(boolean re) {
+            TRACE.d("onReturnStoreCertificatesResult:" + re);
+            if (isInitKey) {
+                statusEditText.setText("Init key result is :" + re);
                 isInitKey = false;
-            }else {
-                statusEditText.setText("Exchange Certificates result is :"+re);
+            } else {
+                statusEditText.setText("Exchange Certificates result is :" + re);
             }
 
         }
 
         @Override
-        public  void onReturnDeviceSigningCertResult(String certificates, String certificatesTree) {
-            TRACE.d("onReturnDeviceSigningCertResult:"+certificates+"\n"+certificatesTree);
+        public void onReturnDeviceSigningCertResult(String certificates, String certificatesTree) {
+            TRACE.d("onReturnDeviceSigningCertResult:" + certificates + "\n" + certificatesTree);
             deviceSignCert = certificates;
-            String command = getString(R.string.pedi_command,certificates,"1","oeap");
-            command = ParseASN1Util.addTagToCommand(command,"CD",certificates);
-            TRACE.i("request the RKMS command is "+command);
+            String command = getString(R.string.pedi_command, certificates, "1", "oeap");
+            command = ParseASN1Util.addTagToCommand(command, "CD", certificates);
+            TRACE.i("request the RKMS command is " + command);
             String pediRespose = "[AOPEDI;ANY;CC308203B33082029BA00302010202074EB0D60000987E300D06092A864886F70D01010B0500308190310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A5669727475437279707431173015060355040C0C0E44737072656164204B44482043413117301506035504410C0E44737072656164204B44482043413117301506035504030C0E44737072656164204B4448204341301E170D3231303330363030303030305A170D3330303330373030303030305A3081A2310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A56697274754372797074311D301B060355040C0C14447370726561645F417573524B4D533130312D56311D301B06035504410C14447370726561645F417573524B4D533130312D56311D301B06035504030C14447370726561645F417573524B4D533130312D5630820122300D06092A864886F70D01010105000382010F003082010A0282010100D7FD40DD513EE82491FABA3EB734C3FE69C79973797007A2183EC9C468F73D8E1CB669DDA6DC32CA125F9FAEAC0C0556893C9196FB123B06BC9B880EEF367CD17000C7E0ECF7313DD2D396F29C8D977A65946258BE5A4133462F0675161407EED3D263BC20E9271B9070DCC1A6376F89E7E9E2B304BC756E3E3B61B869A2E39F11067D00B5BA3817673A730F42DC4C037FC214207C70A1E3E43F7D7494E71EBDD5BB0E9AFAE32E422DB90B85E230DF406FB12470AD0360FD7BDFDD1A29BCE91655A835129858A0E9EB04845A80F1E9F8EAA20C67C6B8A61113D6FFDD7DF5719778A03A30F69B0DD9033D5E975F723CC18792CC6988250A7DBD20901450651A810203010001300D06092A864886F70D01010B050003820101008F002AE3AFB49C2E7D99CC7B933617D180CB4E8EA13CBCBE7469FC4E5124033F06E4C3B0DAB3C6CA4625E3CD53E7B86C247CDF100E266059366F8FEEC746507E1B0D0924029805AAB89FCE1482946B8B0C1F546DD56B399AB48891B731148C878EF4D02AE641717A3D381C7B62011B76A6FFBF20846217EB68149C96B4B134F980060A542DBE2F32BF7AD308F26A279B41C65E32D4E260AE68B3010685CE36869EFF09D211CE64401F417A72F29F49A2EE713ACC37C29AECBFEBE571EF11D883815F54FA3E52A917CC3D6B008A3E3C52164FF5591D869026D248873F15DE531104F329C279FC5B6BC28ABC833F8C31BEF47783A5D5B9C534A57530D9AE463DC3;CD308203B33082029BA00302010202074EB0D60000987C300D06092A864886F70D01010B0500308190310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A5669727475437279707431173015060355040C0C0E44737072656164204B44482043413117301506035504410C0E44737072656164204B44482043413117301506035504030C0E44737072656164204B4448204341301E170D3231303330373030303030305A170D3330303330383030303030305A3081A2310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A56697274754372797074311D301B060355040C0C14447370726561645F417573524B4D533130312D45311D301B06035504410C14447370726561645F417573524B4D533130312D45311D301B06035504030C14447370726561645F417573524B4D533130312D4530820122300D06092A864886F70D01010105000382010F003082010A0282010100A62A4935B57BA478F41B6C8B3F79E84DB61E516FEC8D5BE3E86FD296C6906625E0316A77F59D6D5075811BA7BB0801366BA7E370B758E3E1DCE005008C13D368536C2216FAF8AF70EBC6B5D1D231AFD19D6270DDBEA6535B46135D1DE11F374978A655FAA8C2A0DDC933CF82E9DC69DABF8676D0E81762D9B01799C83A8DF3EE70584AA4543EBBDAB02A0EFCA6A276588893DD28BD096400E315ECF5FE91EC210EEC2BE8763FEFB57D1448CC7D0FCDC3BDCE4B7BAAD546E0E5E99281B4F1AB052E1B0361977406B6B57B32353E9F338BED29E55E2D1F65C4322B5850D45146D5A66BFE8323C0D3E78E55A8945B622E15295B9176454A868399990B31D7B104CF0203010001300D06092A864886F70D01010B05000382010100296101AC1ED80EF9DD845D03F2D1F822B4AEFD50E0A1F47FA98105155327FDA6CE52BCD650BE1EB6DCD7F3CDF73325E85EE979EF0364970ADF6ED3A247B2E3E2D83D877BEBD66B20F3983E8DF8932F82F30C3FAF980ADF72E9FEE30EBAFC42B19FB1EAEC74BAE16E2D4EF245D18B58FB560A64C9B515EA065ECA7AE81D6ED0B97A24636E1E70EE3F2F3A3364C17C6B36BE82588BBED79F23914D4E4E7E1E3FC2A5438FAB0535D37D6FA52009ACD37B6F413700BBF440B6B94E4F12C7F465B8AAC2A03776AAB9AFBAE42FE19664DC0B4E3D8A90EB185529CABE39335AEC58295E1E073A765733410FD769345E9B99C0AA0CBE3FA815661857DCF7EA3BD35EFB4C;RD04916CCC6289600A55118FC37AF0999E;]";
-            String cc = ParseASN1Util.parseToken(pediRespose,"CC");
-            String cd = ParseASN1Util.parseToken(pediRespose,"CD");
+            String cc = ParseASN1Util.parseToken(pediRespose, "CC");
+            String cd = ParseASN1Util.parseToken(pediRespose, "CD");
             BASE64Decoder base64Decoder = new BASE64Decoder();
             try {
-                String caChain= QPOSUtil.byteArray2Hex(base64Decoder.decodeBuffer(QPOSUtil.readRSANStream(getAssets().open("FX-Dspread-CA-Tree.pem"))));
+                String caChain = QPOSUtil.byteArray2Hex(base64Decoder.decodeBuffer(QPOSUtil.readRSANStream(getAssets().open("FX-Dspread-CA-Tree.pem"))));
                 //the api callback is onReturnStoreCertificatesResult
-                pos.loadCertificates(cc,cd,caChain);
+                pos.loadCertificates(cc, cd, caChain);
 //                statusEditText.setText("is load the server cert to device...");
             } catch (Exception e) {
                 e.printStackTrace();
@@ -2405,21 +2092,21 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onReturnAnalyseDigEnvelop(String result) {
             super.onReturnAnalyseDigEnvelop(result);
-            verifySignatureCommand = ParseASN1Util.addTagToCommand(verifySignatureCommand,"KA",result);
-            if(pedvVerifySignatureCommand != null){
-                pedvVerifySignatureCommand = ParseASN1Util.addTagToCommand(pedvVerifySignatureCommand,"KA",result);
-                TRACE.i("send key encryption command to RMKS is "+ pedvVerifySignatureCommand);
+            verifySignatureCommand = ParseASN1Util.addTagToCommand(verifySignatureCommand, "KA", result);
+            if (pedvVerifySignatureCommand != null) {
+                pedvVerifySignatureCommand = ParseASN1Util.addTagToCommand(pedvVerifySignatureCommand, "KA", result);
+                TRACE.i("send key encryption command to RMKS is " + pedvVerifySignatureCommand);
             }
-            TRACE.i("send key encryption command to RMKS is "+ verifySignatureCommand);
+            TRACE.i("send key encryption command to RMKS is " + verifySignatureCommand);
             String response = "[AOPEDK;ANY;KN0;KB30819D0201013181973081941370413031313242315458303045303130304B5331384646464630303030303030303031453030303030414332313038323435443442443733373445443932464142363838373438314544363034344137453635433239463132393739383931384441394434353631443235324143414641020102040AFFFF0000000001E00000020100130A4473707265616442444B04021D58;KA0D0B2F2F3178D4045C1363274890494664B23D32BABEA47E5DB42F15C06816107FD293BAFF7371119F0B11B685A29D40DE78D397F9629A56112629452A9525F5261F8BDCA168328C49ACCFF0133C90E91AFCCA1E18178EBBA5E0BFA054B09514BA87EE05F2E4837D2C74E00BFD3B14EB708598517F357F79AA34C89DFEA9F59B6D3CECABA6C211809400DE9D0B0CA09384FDD834B8BFD416C4B09D32B3F5E45001F18E5C3116A0FFD8E0C6ACE567FCCE1AC909FD038FB58F16BB32163866CD9DCB4B131A394757638111B2CF3DC968D58CBAA95279BEFF697C0D92C6A42248B53A3E56E595AD128EDB50710BDBFFCB113A7DC4ECBCE8668482CBFD22CD7B2E42;RDB077A03C07C94F161842AA0C4831E0EF;CE1;AP308205A906092A864886F70D010702A082059A30820596020149310D300B06096086480165030402013082032506092A864886F70D010703A082031604820312020100318201FB308201F70201003081A830819C310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A56697274754372797074311B3019060355040C0C12447370726561642044657669636573204341311B301906035504410C12447370726561642044657669636573204341311B301906035504030C1244737072656164204465766963657320434102074EB0D600009880304306092A864886F70D0101073036300B0609608648016503040201301806092A864886F70D010108300B0609608648016503040201300D06092A864886F70D01010904000482010092583A07F6280625EE4CA043E3245F2CD6CCA8BAE6E198F4046A5DDE055723D2591A84DDCA4D7F7BB1B179881FD9EC4E33ED22333A9008DAEB3C3B1D7143D1953F2363BEA4C0D2592667C3468F228F856A95A6DCA1FA9CA0AB05D25DC612E7E2BF2AE3012D22C78BB7224C8C8E02146929937C3DF9FA3589B2A486C132477ACFA50BE09528FCBFDA43079AF54C050843BE4BDE701D246D8D8A4C947F12AFD97A66010459BBAE4ED627F687CC3E6DC30B5B35FE3564D9FB07F501B57A73A70AB9C3398E14391B16A5FE45C374984219F0B3A3265A82D3F5A48CEEF3998DCEA59F1CC5821B51605C66C8FD2687778C84B51CCE51C1FBFA876F978E0A9546C425FF3082010C06092A864886F70D010701301406082A864886F70D03070408C8FA8F2094E103118081E85816DF38AEC7C0E569C011DB7212278A767C8934770C7E994E9508E256B693973FBB4B47A78A9F6B1AB2D326CC2A76A53E3731B8A8128B1DE4BEDCCA51E0E740C1A474C21C8CF4A4726F4FBE0DC5CE41C4DB7A2CDBB2EF7B2C0F61B50E34A1A327A5069EB23524DB0D8119C4C407B90277B806288ECAC2826AF8AF6D092B29E90C03554986F38345B6BB247BC1498C2185661BDE318ADECAF199E798D70A058305F686ECC3A267D28EED6052483401EB5B5B84F897CAEA7968B8EEAB23F465CE3F1E7F7F7E402D1AA681D76D34CF9EC0B6BBBE9A513B8C42E5EA5319E218AC996F87767966DBD8F8318202573082025302014930819C308190310B3009060355040613025553310B300906035504080C0254583114301206035504070C0B53414E20414E544F4E494F31133011060355040A0C0A5669727475437279707431173015060355040C0C0E44737072656164204B44482043413117301506035504410C0E44737072656164204B44482043413117301506035504030C0E44737072656164204B444820434102074EB0D60000987E300B0609608648016503040201A0818E301806092A864886F70D010903310B06092A864886F70D0107033020060A2A864886F70D01091903311204104CDCEDD916AAACEEAE548A1C5B0A0EAA301F06092A864886F70D0107013112041041303031364B30544E30304530303030302F06092A864886F70D01090431220420A0E06A133DA8D4A5EC5A2E51E468B470B19E13834019A0C2563BA39308660A1F300D06092A864886F70D0101010500048201003BA0F51DC5B3400E5CD29429663008713C3B61DE0C053590296421635218AEB228A1802C971B18CCF0A137D66FE07B08A0B2A592F11557CC401C353C859E1B82C4BAE146F8AC2955BD1326A3482B173E5589B321FBA0517DCA071F120D0940DC7B8CD33C861E1403CCBD7C3203F1609D261D38B415A0BF234CC9370D18B1004D89BE4C7C4631C7A5D3A1010F0371E25F70B8000D5B94C946571D0F6A730DEF57950AED18839B38B0FF6497D03E960194CF3F113C57575F62E8299FCDE855A1BD36ECE5CAF3DC9F942387A76A329715EC09FDBED3C4FACA06160D538EC00D0166D46152D61F6C665F749E91A0E70E532CE726525B946ACD81510FF47146F00994;]";
-            String KA = ParseASN1Util.parseToken(response,"KA");
+            String KA = ParseASN1Util.parseToken(response, "KA");
 
-            KB =  ParseASN1Util.parseToken(response,"KB");
+            KB = ParseASN1Util.parseToken(response, "KB");
             String signatureData = "a57e821386de1038b1a12dc22fa59ce317625680c523bd66bf2b9f840aebe52d020e07105d4107eeb05edd560d0345cd73ce2b68dbf19c61f9d56fbd1ddf9222c47956595b773c88eb7ec4577fb17053d42acf64f3e5c38ff325cdac7b689df029299087b69211e61bdfc22e329eb287456f83ef6c25e84fe1324e36ee85ba7e3accb79eb8ab7b270916a28a42a867e0e050c6950100c90daddb1f421444d16accb6005a312c3273c2f1b28f0c77456ae875081ae594d26139efd267c8dafa15e1b6cf961f3acdb92b26777127f474d24d57611b29f01dec062c02d720c4e759e1757f85ee39e74e05e23aa0aed53d62d05a902a6539a3e986e6dd237888ff92";
-            boolean verifyResult = pos.authenticServerResponse(QPOSUtil.HexStringToByteArray(KA),signatureData);
+            boolean verifyResult = pos.authenticServerResponse(QPOSUtil.HexStringToByteArray(KA), signatureData);
             verifyResult = true;
-            if(verifyResult) {
-                if(response.contains("AP")) {
+            if (verifyResult) {
+                if (response.contains("AP")) {
                     String AP = ParseASN1Util.parseToken(response, "AP");
                     ParseASN1Util.parseASN1new(AP.replace("A081", "3081"));
                     String nonce = ParseASN1Util.getNonce();
@@ -2434,14 +2121,14 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                     String envelop = getDigitalEnvelopStr(encryptData, encryptDataWith3des, "01", clearData, signData, IV);
                     //the api callback is onRequestUpdateWorkKeyResult
                     pos.loadSessionKeyByTR_34(envelop);
-                }else {
+                } else {
                     statusEditText.setText("signature verification successful.");
                     ParseASN1Util.parseASN1new(KB);
-                    String data =  ParseASN1Util.getTr31Data();
+                    String data = ParseASN1Util.getTr31Data();
                     //the api callback is onReturnupdateKeyByTR_31Result
-                    pos.updateKeyByTR_31(data,30);
+                    pos.updateKeyByTR_31(data, 30);
                 }
-            }else {
+            } else {
                 statusEditText.setText("signature verification failed.");
             }
         }
@@ -2526,6 +2213,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
     private void clearDisplay() {
         statusEditText.setText("");
     }
+
     private String terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
     private TransactionType transactionType = TransactionType.GOODS;
 
@@ -2549,7 +2237,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                     pos.doTrade(terminalTime, 0, 30);
                 } else {
                     int keyIdex = getKeyIndex();
-                    pos.doTrade(keyIdex,30);//start do trade
+                    pos.doTrade(keyIdex, 30);//start do trade
                 }
             } else if (v == btnUSB) {
                 USBClass usb = new USBClass();
@@ -2587,10 +2275,8 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                         open(CommunicationMode.BLUETOOTH_BLE);
                         posType = POS_TYPE.BLUETOOTH_BLE;
                     }
-                }else {
-                    pos.clearBluetoothBuffer();
                 }
-
+                pos.clearBluetoothBuffer();
                 if (isNormalBlu) {
                     TRACE.d("begin scan====");
                     pos.scanQPos2Mode(MainActivity.this, 20);
@@ -2599,11 +2285,10 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 }
                 animScan.start();
                 imvAnimScan.setVisibility(View.VISIBLE);
+                refreshAdapter();
                 if (m_Adapter != null) {
                     TRACE.d("+++++=" + m_Adapter);
                     m_Adapter.notifyDataSetChanged();
-                }else{
-                  //  refreshAdapter();
                 }
             } else if (v == btnDisconnect) {
                 close();
@@ -2629,17 +2314,17 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 pos.setBlockaddr(blockaddr);
                 pos.setKeyValue(keyValue);
 //                pos.doMifareCard("02" + keyclass, 20);
-                pos.authenticateMifareCard(QPOSService.MifareCardType.CLASSIC,keyclass,blockaddr,keyValue,20);
+                pos.authenticateMifareCard(QPOSService.MifareCardType.CLASSIC, keyclass, blockaddr, keyValue, 20);
             } else if (v == veriftULBtn) {
                 String keyValue = status11.getText().toString();
                 pos.setKeyValue(keyValue);
 //                pos.doMifareCard("0D", 20);
-                pos.authenticateMifareCard(QPOSService.MifareCardType.UlTRALIGHT,"","",keyValue,20);
+                pos.authenticateMifareCard(QPOSService.MifareCardType.UlTRALIGHT, "", "", keyValue, 20);
             } else if (v == readBtn) {
                 String blockaddr = blockAdd.getText().toString();
                 pos.setBlockaddr(blockaddr);
 //                pos.doMifareCard("03", 20);
-                pos.readMifareCard(QPOSService.MifareCardType.CLASSIC,blockaddr,20);
+                pos.readMifareCard(QPOSService.MifareCardType.CLASSIC, blockaddr, 20);
             } else if (v == writeBtn) {
                 String blockaddr = blockAdd.getText().toString();
                 String cardData = status.getText().toString();
@@ -2648,15 +2333,15 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 pos.setBlockaddr(blockaddr);
                 pos.setKeyValue(cardData);
 //                pos.doMifareCard("04", 20);
-                pos.writeMifareCard(QPOSService.MifareCardType.CLASSIC,blockaddr,cardData,20);
+                pos.writeMifareCard(QPOSService.MifareCardType.CLASSIC, blockaddr, cardData, 20);
             } else if (v == operateCardBtn) {
                 String blockaddr = blockAdd.getText().toString();
                 String cardData = status.getText().toString();
                 String cmd = (String) cmdSp.getSelectedItem();
                 pos.setBlockaddr(blockaddr);
                 pos.setKeyValue(cardData);
-                if(cmd.equals("add")){
-                    pos.operateMifareCardData(QPOSService.MifareCardOperationType.ADD,blockaddr,cardData,20);
+                if (cmd.equals("add")) {
+                    pos.operateMifareCardData(QPOSService.MifareCardOperationType.ADD, blockaddr, cardData, 20);
                 }
 //                pos.doMifareCard("05" + cmd, 20);
             } else if (v == getULBtn) {
@@ -2666,21 +2351,21 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                 String blockaddr = block_address11.getText().toString();
                 pos.setBlockaddr(blockaddr);
 //                pos.doMifareCard("07", 20);
-                pos.readMifareCard(QPOSService.MifareCardType.UlTRALIGHT,blockaddr,20);
+                pos.readMifareCard(QPOSService.MifareCardType.UlTRALIGHT, blockaddr, 20);
             } else if (v == fastReadUL) {
                 String endAddr = block_address11.getText().toString();
                 String startAddr = status11.getText().toString();
                 pos.setKeyValue(startAddr);
                 pos.setBlockaddr(endAddr);
 //                pos.doMifareCard("08", 20);
-                pos.fastReadMifareCardData(startAddr,endAddr,20);
+                pos.fastReadMifareCardData(startAddr, endAddr, 20);
             } else if (v == writeULBtn) {
                 String addr = block_address11.getText().toString();
                 String data = status11.getText().toString();
                 pos.setKeyValue(data);
                 pos.setBlockaddr(addr);
 //                pos.doMifareCard("0B", 20);
-                pos.writeMifareCard(QPOSService.MifareCardType.UlTRALIGHT,addr,data,20);
+                pos.writeMifareCard(QPOSService.MifareCardType.UlTRALIGHT, addr, data, 20);
             } else if (v == transferBtn) {
 //                String data = status.getText().toString();
 //                String len = blockAdd.getText().toString();
@@ -2688,8 +2373,9 @@ public class MainActivity extends BaseActivity implements TransactionListener {
 //                pos.setKeyValue(data);
 //                pos.transferMifareData(data,20);
             } else if (v == updateFwBtn) {//update firmware
-                isUpdateFw = true;
-                pos.getUpdateCheckValue();
+//                isUpdateFw = true;
+//                pos.getUpdateCheckValue();
+                updateFirmware();
             }
         }
     }
@@ -2762,6 +2448,24 @@ public class MainActivity extends BaseActivity implements TransactionListener {
                     statusEditText.setText(content);
                     break;
                 case 1703:
+//                    int keyIndex = getKeyIndex();
+//                    String digEnvelopStr = null;
+//                    Poskeys posKeys = null;
+//                    try {
+//                        if (resetIpekFlag) {
+//                            posKeys = new DukptKeys();
+//                        }
+//                        if (resetMasterKeyFlag) {
+//                            posKeys = new TMKKey();
+//                        }
+//                        posKeys.setRSA_public_key(pubModel); //Model of device public key
+//                        digEnvelopStr = Envelope.getDigitalEnvelopStrByKey(getAssets().open("priva.pem"),
+//                                posKeys, Poskeys.RSA_KEY_LEN.RSA_KEY_1024, keyIndex);
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                    }
+//                    pos.updateWorkKey(digEnvelopStr);
+//                    break;
                 default:
                     break;
             }
@@ -2770,20 +2474,20 @@ public class MainActivity extends BaseActivity implements TransactionListener {
 
     public void updateEmvConfig() {
 //      update emv config by bin files
-        String emvAppCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_appf.bin", MainActivity.this));
-        String emvCapkCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_capkf.bin", MainActivity.this));
+        String emvAppCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_app.bin", MainActivity.this));
+        String emvCapkCfg = QPOSUtil.byteArray2Hex(FileUtils.readAssetsLine("emv_capk.bin", MainActivity.this));
         TRACE.d("emvAppCfg: " + emvAppCfg);
         TRACE.d("emvCapkCfg: " + emvCapkCfg);
         pos.updateEmvConfig(emvAppCfg, emvCapkCfg);
     }
 
-    public void updateFirmware(){
+    public void updateFirmware() {
         if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
             //request permission
             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
         } else {
-            LogFileConfig.getInstance().setWriteFlag(true);
+//            LogFileConfig.getInstance().setWriteFlag(true);
             byte[] data = null;
             List<String> allFiles = null;
 //                    allFiles = FileUtils.getAllFiles(FileUtils.POS_Storage_Dir);
@@ -2804,7 +2508,7 @@ public class MainActivity extends BaseActivity implements TransactionListener {
             }
             int a = pos.updatePosFirmware(data, blueTootchAddress);
             if (a == -1) {
-                isUpdateFw = false;
+//                isUpdateFw = false;
                 Toast.makeText(MainActivity.this, "please keep the device charging", Toast.LENGTH_LONG).show();
                 return;
             }
