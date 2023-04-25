@@ -9,40 +9,21 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
-
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
-
 import com.ravenpos.ravendspreadpos.device.RavenActivity;
 import com.ravenpos.ravendspreadpos.device.WelcomeActivity;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
-import com.ravenpos.ravendspreadpos.utils.AppLog;
 import com.ravenpos.ravendspreadpos.utils.Constants;
 import com.ravenpos.ravendspreadpos.utils.MyHandler;
 import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
-
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.DESedeKeySpec;
-import javax.crypto.spec.SecretKeySpec;
-
-
 public class MainActivity extends AppCompatActivity implements TransactionListener {
     private BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     private MyHandler handler;
@@ -65,7 +46,6 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         else
             ActivityCompat.requestPermissions(activity, BLE_PERMISSIONS, requestCode);
     }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,7 +83,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             */
                 boolean isEnabled = RavenActivity.isUSBDetected();
                 String tt = "";
-              //  requestBlePermissions(MainActivity.this,100);
+               requestBlePermissions(MainActivity.this,100);
             }
         });
     }
@@ -175,7 +155,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     }
 
     private void startAccountSelectionActivity(Double amount) {
-        Intent intent = new Intent(this, RavenActivity.class);
+        Intent intent = new Intent(this, WelcomeActivity.class);
         intent.putExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE, "10");
         intent.putExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, amount);
         intent.putExtra(Constants.TERMINAL_ID, "2030LQ01");

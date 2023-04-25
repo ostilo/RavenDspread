@@ -1,7 +1,4 @@
 <resources>
-
-    <style name="Widget.GifMoviewView" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
-
     <!-- Common Screen Style -->
 
     <style name="Theme.AppCompat.Translucent.NoTitleBar" parent="Theme.MaterialComponents.Light">
@@ -34,33 +31,8 @@
         <!--        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>-->
         <!-- Customize your theme here. -->
         <item name="android:fontFamily">@font/proxima_nova_bold</item>
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <item name="bottomSheetDialogTheme">@style/AppBottomSheetDialogTheme</item>
+        <item name="android:statusBarColor">@color/teal_200</item>
     </style>
-
-
-    <style name="AppBottomSheetDialogTheme" parent="Theme.MaterialComponents.Light.BottomSheetDialog">
-        <item name="bottomSheetStyle">@style/AppModalStyle</item>
-    </style>
-
-    <style name="AppModalStyle" parent="Widget.Design.BottomSheet.Modal">
-        <item name="android:background">@drawable/check_rate_bg</item>
-    </style>
-
-
-    <style name="HintTextAppearance" parent="TextAppearance.Design.Hint">
-        <item name="android:textColor">@color/black</item>
-    </style>
-
-    <style name="MyAlertDialogStyle" parent="Theme.AppCompat.Light.Dialog.Alert">
-        <item name="colorAccent">@color/teal_200</item>
-    </style>
-
-    <style name="toolbarStyle">
-        <item name="android:textColorPrimary">@color/black</item>
-        <item name="android:textColorSecondary">@color/black</item>
-    </style>
-
 
     <style name="match_wrap">
         <item name="android:layout_width">match_parent</item>

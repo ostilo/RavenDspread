@@ -22,7 +22,7 @@ import android.text.TextWatcher;
 import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 
-import com.chaos.view.PinView;
+//import com.chaos.view.PinView;
 import com.dspread.xpos.CQPOSService;
 import com.dspread.xpos.QPOSService;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -82,16 +82,16 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
     private String nfcLog = "";
 
     private BottomSheetDialog pinDialog;
-    private PinView txtUserPin;
+    //private PinView txtUserPin;
 
     private UsbDevice usbDevice;
 
     private Activity activity;
     private void initializeSheet(Context context){
-        pinDialog = new BottomSheetDialog(context);
-        pinDialog.setContentView(R.layout.transaction_pinview);
-        txtUserPin = pinDialog.findViewById(R.id.txtTaxPayerIdPIn);
-        assert txtUserPin != null;
+        //pinDialog = new BottomSheetDialog(context);
+        //pinDialog.setContentView(R.layout.transaction_pinview);
+       // txtUserPin = pinDialog.findViewById(R.id.txtTaxPayerIdPIn);
+       // assert txtUserPin != null;
     }
 
     public void startTransaction(Activity activity, DeviceType deviceTyp, String bluetoothAddress, Double amount, TransactionType transactionType, TransactionResponse transactionResponse, MutableLiveData<String> listenerMutable, TransactionListener vlistener){
@@ -119,7 +119,7 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
         pos.setConext(context);
         pos.initListener(new Handler(Looper.myLooper()), this);
         this.context = context;
-        initializeSheet(context);
+      //  initializeSheet(context);
     }
     public static MyPosListener initialize(Context context,DeviceType deviceType){
         return myPosListener == null ? new MyPosListener(context,deviceType) : myPosListener;
@@ -835,8 +835,8 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
                 @Override
                 public void run() {
                     pinDialog.show();
-
-                    txtUserPin.addTextChangedListener(new TextWatcher() {
+                    /*
+                                        txtUserPin.addTextChangedListener(new TextWatcher() {
                         @Override
                         public void beforeTextChanged(CharSequence s, int start, int count, int after) {
 
@@ -857,6 +857,8 @@ public class MyPosListener extends CQPOSService implements MyCallBackListener {
 
                         }
                     });
+
+                     */
                 }
             });
 

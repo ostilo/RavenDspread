@@ -39,6 +39,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
         }
     }
     compileOptions {
@@ -58,7 +59,7 @@ dependencies {
     implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.24'
 
     //Dspread SDK
-    implementation 'com.iqiyi.xcrash:xcrash-android-lib:2.4.6'
+   // implementation 'com.iqiyi.xcrash:xcrash-android-lib:2.4.6'
     implementation 'com.binioter:guideview:1.0.0'
     implementation files('libs/zxing.jar')
    // implementation 'org.jetbrains:annotations-java5:15.0'
@@ -85,7 +86,7 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    implementation 'com.chaos.view:pinview:1.4.2'
+  //  implementation 'com.chaos.view:pinview:1.4.2'
 
     //Networks
 

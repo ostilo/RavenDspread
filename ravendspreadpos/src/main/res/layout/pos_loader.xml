@@ -90,7 +90,6 @@
                     android:hint="key index" />
 
                 <EditText
-                    android:contentDescription="@string/action_settings"
                     android:id="@+id/statusEditText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
