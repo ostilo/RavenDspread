@@ -1705,7 +1705,7 @@ public class MainActivity extends BaseActivity {
         @Override
         public void onRequestDeviceScanFinished() {
             TRACE.d("onRequestDeviceScanFinished()");
-            Toast.makeText(MainActivity.this, R.string.scan_over, Toast.LENGTH_LONG).show();
+           // Toast.makeText(MainActivity.this, R.string.scan_over, Toast.LENGTH_LONG).show();
 //            animScan.stop();
 //            imvAnimScan.setVisibility(View.GONE);
         }

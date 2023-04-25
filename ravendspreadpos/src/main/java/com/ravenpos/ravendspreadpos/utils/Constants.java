@@ -14,6 +14,9 @@ public class Constants {
     public static final String INTENT_CLEAR_PIN_KEY = "pinMaster";
 
     public static final String INTENT_CLEAR_SESSION_KEY = "session_key";
+
+    public static final String INTENT_BLUETOOTH_DEVICE_TYPE = "device_type";
+
     public static final String INTENT_IP = "IP_In";
     public static final String INTENT_Port = "Port_In";
 

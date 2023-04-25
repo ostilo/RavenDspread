@@ -29,12 +29,12 @@ import com.ravenpos.ravendspreadpos.databinding.ActivityWelcomeBinding;
 public class WelcomeActivity extends AppCompatActivity implements View.OnClickListener {
     private Button audio,serial_port,normal_blu,other_blu,print;
     private Intent intent;
+    private static final int BLUETOOTH_CODE = 100;
     private static final int LOCATION_CODE = 101;
     private LocationManager lm;//【Location management】
     private AppBarConfiguration appBarConfiguration;
     private ActivityWelcomeBinding binding;
 
-    private static final int BLUETOOTH_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

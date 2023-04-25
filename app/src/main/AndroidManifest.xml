@@ -71,9 +71,6 @@
 
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
 
-                <category android:name="android.intent.category.DEFAULT" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
@@ -85,6 +82,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>

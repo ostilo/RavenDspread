@@ -1,18 +1,26 @@
 package com.ravenpos.ravendspread;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.Toast;
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.lifecycle.MutableLiveData;
 import com.ravenpos.ravendspreadpos.device.RavenActivity;
 import com.ravenpos.ravendspreadpos.device.WelcomeActivity;
@@ -83,14 +91,62 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             */
                 boolean isEnabled = RavenActivity.isUSBDetected();
                 String tt = "";
-               requestBlePermissions(MainActivity.this,100);
+                bluetoothRelaPer();
             }
         });
     }
+    private static final int BLUETOOTH_CODE = 100;
+    private static final int LOCATION_CODE = 101;
+    private LocationManager lm;//【Location management】
+    public void bluetoothRelaPer() {
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter != null && !adapter.isEnabled()) {
+            //if bluetooth is disabled, add one fix
+            Intent enabler = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivity(enabler);
+        }
+        lm = (LocationManager) MainActivity.this.getSystemService(MainActivity.this.LOCATION_SERVICE);
+        boolean ok = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        if (ok) {//Location service is on
+            if (ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                Log.e("POS_SDK", "Permission Denied");
+                // Permission denied
+                // Request authorization
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
+                            || ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+                            || ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
+                        String[] list = new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_ADVERTISE};
+                        ActivityCompat.requestPermissions(MainActivity.this, list, BLUETOOTH_CODE);
+
+                    }
+                } else {
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_CODE);
+                }
+//                        Toast.makeText(getActivity(), "Permission Denied", Toast.LENGTH_SHORT).show();
+            } else {
+                // have permission
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
+                            || ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+                            || ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
+                        String[] list = new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE};
+                        ActivityCompat.requestPermissions(MainActivity.this, list, BLUETOOTH_CODE);
+                    }
+                }
+                Toast.makeText(MainActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Log.e("BRG", "System detects that the GPS location service is not turned on");
+            Toast.makeText(MainActivity.this, "System detects that the GPS location service is not turned on", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent();
+            intent.setAction(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            startActivityForResult(intent, 1315);
+        }
+    }
 
     //08033107755
-
-
 /*
     private void encryptPinData() throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {
         try {
@@ -113,52 +169,12 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     }
 
  */
-    private void proceedToPayment() {
-        try {
-            if(!btAdapter.isEnabled()){
-                btAdapter.enable();
-                Thread.sleep(2000);
-            }
-            selectBluetoothDevice();
-        }catch (Exception e){}
-    }
-    private void selectBluetoothDevice() {
-        final Set<BluetoothDevice> pairedBTDevices =  btAdapter.getBondedDevices();
-        List<String> deviceNames = getDeviceNames(pairedBTDevices);
-        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, deviceNames);
-        AlertDialog.Builder alertDialog =  new AlertDialog.Builder(this);
-        alertDialog.setAdapter(adapter, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                String btDevice =  ((BluetoothDevice)pairedBTDevices.toArray()[which]).getAddress();
-                startEmV(btDevice);
-            }
-        });
-        alertDialog.setTitle("Select Bluetooth Device");
-        alertDialog.show();
-
-    }
-
-    private List<String> getDeviceNames(Set<BluetoothDevice> pairedBTDevices) {
-        List<String> temp = new ArrayList<>();
-        for(BluetoothDevice device: pairedBTDevices){
-            temp.add(device.getName());
-        }
-        return temp;
-    }
-
-    private void startEmV( final String btMacAddress){
-        handler.sendEmptyMessage(0);
-        //EmvTransactionHelper.initialize(this);
-      //  EmvTransactionHelper.startTransaction(this, btMacAddress,10.0, message,this);
-    }
-
     private void startAccountSelectionActivity(Double amount) {
-        Intent intent = new Intent(this, WelcomeActivity.class);
+        Intent intent = new Intent(this, RavenActivity.class);
         intent.putExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE, "10");
         intent.putExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, amount);
         intent.putExtra(Constants.TERMINAL_ID, "2030LQ01");
+        intent.putExtra(Constants.INTENT_BLUETOOTH_DEVICE_TYPE, true);
 
         //5849377320EA67F846DC19EA086DCE15
         //  intent.putExtra(Constants.INTENT_CLEAR_MASTER_KEY, "1A6101B94AFDF26B8FAB292A263BF467");
