@@ -208,7 +208,6 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         return data;
     }
 
-
     private class MyListViewAdapter extends BaseAdapter {
         private List<Map<String, ?>> m_DataMap;
         private LayoutInflater m_Inflater;
@@ -281,7 +280,6 @@ public class MainActivity extends BaseActivity implements TransactionListener {
         ((MarginLayoutParams) params).setMargins(10, 10, 10, 10);
         listView.setLayoutParams(params);
     }
-
 
     @Override
     public void onCreate(Bundle savedInstanceState) {

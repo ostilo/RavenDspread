@@ -48,6 +48,7 @@ import com.dspread.xpos.CQPOSService;
 import com.dspread.xpos.EmvAppTag;
 import com.dspread.xpos.EmvCapkTag;
 import com.dspread.xpos.QPOSService;
+import com.dspread.xpos.Tlv;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.Gson;
 import com.pnsol.sdk.miura.emv.EmvTags;
@@ -249,9 +250,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }else{
             flags = FLAG_UPDATE_CURRENT;
         }
-        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
-          //  initAID_CAPK();
-        }
+//        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+//          //  initAID_CAPK();
+//        }
         initializeSheet(this);
         viewObserver();
        initIntent();
@@ -387,12 +388,16 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
     private void getInitTermConfig(){
        // initAID_CAPK();
-       pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
-        ArrayList<String> list = new ArrayList<String>();
+        try{
+            pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
+        }catch (Exception ex){
+            AppLog.e("getInitTermConfig", ex.getLocalizedMessage());
+        }
+        //ArrayList<String> list = new ArrayList<String>();
 //        list.add(EmvAppTag.Terminal_type+"22");
 //        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
 //        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
-      injectDevice();
+     // injectDevice();
     }
 
     private byte[] readLine(String Filename) {
@@ -654,7 +659,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         msg.setPanseqno(response.CardSequenceNumber);
 
-
         msg.setClrpin(clearPinKey);
 
         msg.setAccount(getAccountTypeString(accountType));
@@ -786,8 +790,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         super.onDestroy();
         TRACE.d("onDestroy");
         if (pos != null) {
-            close();
-            pos = null;
+            //close();
+            //pos = null;
         }
     }
 
@@ -1282,9 +1286,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             });
             dialog.show();
           */
-
         }
-
         @Override
         public void onRequestSetAmount() {
             TRACE.d("input amount -- S");
@@ -1301,12 +1303,20 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             pos.isServerConnected(true);
         }
 
+        private void getPinBlock(String str){
+            HashMap<Integer, Tlv> tlvList2 = pos.getTag(str);
+            for(Tlv tlv : tlvList2.values()){
+                if(tlv.getTag().equals("C7"))
+                    PINBLOCK = tlv.getValue();
+            }
+        }
         @Override
         public void onRequestOnlineProcess(final String tlv) {
             TRACE.d("onRequestOnlineProcess" + tlv);
             TLV = tlv;
             tagList = getTags();
             ICCDATA = getICCTags();
+            getPinBlock(tlv);
             if (isPinCanceled) {
                 pos.sendOnlineProcessResult(null);
             }
@@ -1368,7 +1378,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             pos.sendTime(terminalTime);
             //message.postValue(getString(R.string.request_terminal_time) + " " + terminalTime);
         }
-
+//579160EE59A49BE7
         @Override
         public void onRequestDisplay(QPOSService.Display displayMsg) {
             TRACE.d("onRequestDisplay(Display displayMsg):" + displayMsg.toString());
@@ -1426,6 +1436,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                         dialog.dismiss();
                     }
                 });
+
                 dialog.findViewById(R.id.cancelButton).setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -1449,8 +1460,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         @Override
         public void onRequestQposConnected() {
-           // getInitTermConfig();
-
+            //getInitTermConfig();
           try {
 //              pos.resetQPOS();
 //              pos.resetPosStatus();
@@ -1659,7 +1669,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 message.postValue("update work key packet len error");
             }
         }
-
+//XML does not match device version
         @Override
         public void onReturnCustomConfigResult(boolean isSuccess, String result) {
             TRACE.d("onReturnCustomConfigResult(boolean isSuccess, String result):" + isSuccess + TRACE.NEW_LINE + result);
