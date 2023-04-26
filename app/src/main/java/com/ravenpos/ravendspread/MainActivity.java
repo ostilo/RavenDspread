@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -22,6 +23,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.MutableLiveData;
+
+import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.device.RavenActivity;
 import com.ravenpos.ravendspreadpos.device.WelcomeActivity;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
@@ -33,7 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 public class MainActivity extends AppCompatActivity implements TransactionListener {
-    private BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     private MyHandler handler;
     private MutableLiveData<String> message;
 
@@ -105,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             Intent enabler = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivity(enabler);
         }
-        lm = (LocationManager) MainActivity.this.getSystemService(MainActivity.this.LOCATION_SERVICE);
+        lm = (LocationManager) MainActivity.this.getSystemService(LOCATION_SERVICE);
         boolean ok = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
         if (ok) {//Location service is on
             if (ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION)

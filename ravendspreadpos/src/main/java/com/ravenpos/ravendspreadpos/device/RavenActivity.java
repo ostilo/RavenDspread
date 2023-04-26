@@ -573,6 +573,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 String plainPin = ksnUtilities.encryptPinBlock(response.CardNo,clearPinText);
                 try {
                     response.PinBlock  = encryptPinData(plainPin,clearPinKey);
+                    msg.setField52(response.PinBlock);
+                    msg.setPinblock(response.PinBlock);
                 } catch (InvalidKeyException e) {
                     throw new RuntimeException(e);
                 } catch (NoSuchAlgorithmException e) {
@@ -586,7 +588,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 } catch (InvalidKeySpecException e) {
                     throw new RuntimeException(e);
                 }
-                msg.setField52(response.PinBlock);
+
                 if(!response.PinBlock.equals("31393937")){
                    // msg.setField52(response.PinBlock);
                 }
