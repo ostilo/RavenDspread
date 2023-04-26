@@ -645,8 +645,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         ravenEmv.nibbsEmv = msg;
         String fullRes = new Gson().toJson(ravenEmv);
         Intent intent = new Intent();
-      //  intent.putExtra(getString(R.string.data), response);
-        intent.putExtra(getString(R.string.data), ravenEmv);
+       // intent.putExtra(getString(R.string.data), ravenEmv);
+        intent.putExtra(getString(R.string.data), fullRes);
         setResult(Activity.RESULT_OK, intent);
         finish();
  /*
