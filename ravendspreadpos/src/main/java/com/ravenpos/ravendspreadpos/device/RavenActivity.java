@@ -103,7 +103,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private final String currencyCode = "566";
     private ActivityRavenBinding binding;
 
-    public QPOSService pos;
+    public static QPOSService pos;
     private UsbDevice usbDevice;
     private Dialog dialog;
     private Hashtable<String, String> tagList;
@@ -177,7 +177,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         response.amount = String.valueOf(totalAmount);
         return response;
     }
-
     @Override
     public void onBackPressed() {
             onCompleteTransaction(new RuntimeException("Transaction not complete"),10);
@@ -187,12 +186,10 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private void proceedToPayment(DeviceType deviceType) {
         try {
             message.postValue(getString(R.string.connect));
-         //   showResult(binding.posViewUpdate, getString(R.string.connect));
             if(deviceType == DeviceType.BLUETOOTH){
                 detectBluetoothConnect();
             }else{
                 initListener();
-              //  selectOTGDevice();
             }
         }catch (Exception e){}
     }
@@ -224,12 +221,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             public void onClick(DialogInterface dialog, int which) {
                 BluetoothModel btDevice = bluetoothModelArrayList.get(which);
                 String btDeviceT =  btDevice.address;
-
                 dialog.dismiss();
                 onBTPosSelected(btDeviceT);
-               // open(CommunicationMode.BLUETOOTH);
-                //posType = POS_TYPE.BLUETOOTH;
-                //open(CommunicationMode.BLUETOOTH);
             }
         });
         alertDialog.setTitle("Select Bluetooth Device");
@@ -250,8 +243,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         Intent intent = getIntent();
         _responseCode = "00";
         ksnUtilities = new KSNUtilities();
-       // String rr = ksnUtilities.desEncrypt("04319DCBB86B7B6E","9DFB23DC0EE3899B26DFBA372570A151");
-      // mApiService = AppUtils.getAPIService();
         if (intent != null) {
             totalAmount = intent.getDoubleExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, 0.0);
             accountType = intent.getStringExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE);
@@ -296,7 +287,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         } else {
             incompleteParameters();
         }
-      //  requestBlePermissions();
         message = new MutableLiveData<>();
         binding.spinKit.setImageResource(R.drawable.insert_card_one);
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
@@ -304,20 +294,10 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }else{
             flags = FLAG_UPDATE_CURRENT;
         }
-//        if(SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
-//          //  initAID_CAPK();
-//        }
         viewObserver();
-       initIntent();
+        initIntent();
         proceedToPayment(deviceTypeA);
-      // initListener();
         message.postValue(getString(R.string.connecting_bt_pos));
-        try {
-          // String gg = encryptedPinData("04319DCBB86B7B6E");
-           //String gRRg = gg;
-        } catch (Exception e) {
-            AppLog.e("encryptedPinData",e.getLocalizedMessage());
-        }
     }
     public static boolean isUSBDetected(){
         USBClass usb = new USBClass();
@@ -352,19 +332,30 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         AlertDialog alert = builder.create();
         alert.show();
     }
+
     private ArrayList list = new ArrayList();
 
-    private void getInitTermConfig(){
-       // initAID_CAPK();
+    public  String  getInitTermConfig(){
         try{
-            pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",RavenActivity.this)));
+//            TRACE.d("open");
+//            MyQposClass listener = new MyQposClass();
+//            pos = QPOSService.getInstance(CommunicationMode.BLUETOOTH);
+//            if (pos == null) {
+//                message.postValue("CommunicationMode unknown");
+//                return "";
+//            }
+//            pos.setConext(RavenActivity.this);
+//            //init handler
+//            Handler handler = new Handler(Looper.myLooper());
+//            pos.initListener(handler, listener);
+//          if(!SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+//              if(pos == null) return "";
+//          }
+            pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",BaseApplication.getINSTANCE())));
         }catch (Exception ex){
             AppLog.e("getInitTermConfig", ex.getLocalizedMessage());
         }
-        //ArrayList<String> list = new ArrayList<String>();
-//        list.add(EmvAppTag.Terminal_type+"22");
-//        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
-//        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
+        return "";
      // injectDevice();
     }
 
@@ -735,31 +726,46 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
      */
     private void close() {
         TRACE.d("close");
-        if (pos == null) {
-            return;
-        } else if (posType == RavenActivity.POS_TYPE.AUDIO) {
-            pos.closeAudio();
-        } else if (posType == RavenActivity.POS_TYPE.BLUETOOTH) {
-            pos.disconnectBT();
+        try {
+            if (pos == null) {
+                return;
+            } else if (posType == RavenActivity.POS_TYPE.AUDIO) {
+                pos.closeAudio();
+            } else if (posType == RavenActivity.POS_TYPE.BLUETOOTH) {
+                pos.disconnectBT();
 //			pos.disConnectBtPos();
-        } else if (posType == RavenActivity.POS_TYPE.BLUETOOTH_BLE) {
-            pos.disconnectBLE();
-        } else if (posType == POS_TYPE.UART) {
-            pos.closeUart();
-        } else if (posType == RavenActivity.POS_TYPE.USB) {
-            pos.closeUsb();
-        } else if (posType == RavenActivity.POS_TYPE.OTG) {
-            pos.closeUsb();
+            } else if (posType == RavenActivity.POS_TYPE.BLUETOOTH_BLE) {
+                pos.disconnectBLE();
+            } else if (posType == POS_TYPE.UART) {
+                pos.closeUart();
+            } else if (posType == RavenActivity.POS_TYPE.USB) {
+                pos.closeUsb();
+            } else if (posType == RavenActivity.POS_TYPE.OTG) {
+                pos.closeUsb();
+            }
+            Thread.sleep(1000);
+        }catch (Exception e){
+            TRACE.d(e.getLocalizedMessage());
         }
     }
+
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         TRACE.d("onDestroy");
         if (pos != null) {
-            //close();
-            //pos = null;
+            close();
+            pos = null;
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (isNormalBlu) {
+            //stop to scan bluetooth
+            pos.stopScanQPos2Mode();
         }
     }
 
@@ -1428,33 +1434,16 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onRequestQposConnected() {
             //getInitTermConfig();
-          try {
-//              pos.resetQPOS();
-//              pos.resetPosStatus();
-          }catch (Exception e){
-              String tt = e.getLocalizedMessage();
-          }
-
             TRACE.d("onRequestQposConnected()");
-          //  Toast.makeText(RavenActivity.this, "onRequestQposConnected", Toast.LENGTH_LONG).show();
             dismissDialog();
-          //  long use_time = new Date().getTime() - start_time;
-            // statusEditText.setText(getString(R.string.device_plugged));
-        //    message.postValue(getString(R.string.device_plugged) + "--" + getResources().getString(R.string.used) + QPOSUtil.formatLongToTimeStr(use_time, RavenActivity.this));
-           /*
-            if (posType == RavenActivity.POS_TYPE.BLUETOOTH || posType == RavenActivity.POS_TYPE.BLUETOOTH_BLE) {
-                setTitle(title + "(" + blueTitle.substring(0, 6) + "..." + blueTitle.substring(blueTitle.length() - 3) + ")");
-            } else {
-                setTitle("Device connect");
+            if(!SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+                  message.postValue(getString(R.string.card_inject));
+                 pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",BaseApplication.getINSTANCE())));
+
+            }else {
+                pos.doTrade();//start do trade
+                //pos.doTrade(30);//start do trade
             }
-            if (ActivityCompat.checkSelfPermission(RavenActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PERMISSION_GRANTED) {
-                //申请权限
-                ActivityCompat.requestPermissions(RavenActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
-            }
-            */
-          //  int keyIdex = getKeyIndex();
-            pos.doTrade(30);//start do trade
         }
 
         @Override
@@ -1643,7 +1632,12 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         public void onReturnCustomConfigResult(boolean isSuccess, String result) {
             TRACE.d("onReturnCustomConfigResult(boolean isSuccess, String result):" + isSuccess + TRACE.NEW_LINE + result);
             message.postValue("result: " + isSuccess + "\ndata: " + result);
-            onCompleteTransaction(new RuntimeException("Emv successfully injected"),100);
+            if(isSuccess){
+                SharedPreferencesUtils.getInstance().setValue(getResources().getString(R.string.loadedDevice),true);
+                pos.doTrade();
+            }else {
+                 onProcessingError(new RuntimeException("Emv failed to  inject"),1010);
+            }
         }
 
         @Override
@@ -2659,6 +2653,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         return decodeData;
     }
+
+
+
     private String getICCTags(){
         StringBuilder builder = new StringBuilder();
         try {

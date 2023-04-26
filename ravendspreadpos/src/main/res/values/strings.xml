@@ -180,5 +180,6 @@
     <string name="purchase_transaction">Purchase Transaction</string>
     <string name="connect">Connecting to bluetooth</string>
     <string name="title_activity_raven">RavenActivity</string>
+    <string name="card_inject">Card Injection processing....</string>
 
 </resources>

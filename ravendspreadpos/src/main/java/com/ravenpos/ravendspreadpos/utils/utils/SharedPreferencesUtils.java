@@ -32,6 +32,10 @@ public class SharedPreferencesUtils {
         return mSharedPreferencesUtils;
     }
 
+    public boolean isDeviceLoaded() {
+        return mSharedPreferences.getBoolean(mContext.getString(R.string.loadedDevice), false);
+    }
+
     /**
      * Stores String value in preferenes
      *
