@@ -756,8 +756,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         super.onDestroy();
         TRACE.d("onDestroy");
         if (pos != null) {
-            //close();
-            //pos = null;
+            close();
+            pos = null;
         }
     }
 
