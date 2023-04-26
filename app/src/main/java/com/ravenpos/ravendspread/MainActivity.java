@@ -92,8 +92,8 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
                     throw new RuntimeException(e);
                 }
             */
-                boolean isEnabled = RavenActivity.isUSBDetected();
-                String tt = "";
+//                boolean isEnabled = RavenActivity.isUSBDetected();
+//                String tt = "";
                 bluetoothRelaPer();
             }
         });
