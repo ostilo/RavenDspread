@@ -209,7 +209,11 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         super.onActivityResult(requestCode, resultCode, data);
           String re = "";
         if (data != null && data.hasExtra("data")) {
-            RavenEmv response = (RavenEmv) data.getSerializableExtra("data");
+            String responseR = data.getStringExtra("data");
+
+            RavenEmv response  =
+                    //new Gson.
+                     (RavenEmv) data.getSerializableExtra("data");
             new AlertDialog.Builder(this)
                     .setTitle(response.dataModel.RRN)
                     .setMessage(response.dataModel.responseCode)

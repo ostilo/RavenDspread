@@ -1425,34 +1425,15 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
         @Override
         public void onRequestQposConnected() {
-            //getInitTermConfig();
-          try {
-//              pos.resetQPOS();
-//              pos.resetPosStatus();
-          }catch (Exception e){
-              String tt = e.getLocalizedMessage();
-          }
-
             TRACE.d("onRequestQposConnected()");
-          //  Toast.makeText(RavenActivity.this, "onRequestQposConnected", Toast.LENGTH_LONG).show();
             dismissDialog();
-          //  long use_time = new Date().getTime() - start_time;
-            // statusEditText.setText(getString(R.string.device_plugged));
-        //    message.postValue(getString(R.string.device_plugged) + "--" + getResources().getString(R.string.used) + QPOSUtil.formatLongToTimeStr(use_time, RavenActivity.this));
-           /*
-            if (posType == RavenActivity.POS_TYPE.BLUETOOTH || posType == RavenActivity.POS_TYPE.BLUETOOTH_BLE) {
-                setTitle(title + "(" + blueTitle.substring(0, 6) + "..." + blueTitle.substring(blueTitle.length() - 3) + ")");
-            } else {
-                setTitle("Device connect");
+            if(!SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+                message.postValue("Card Injection Processing...");
+                pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",BaseApplication.getINSTANCE())));
+            }else {
+                pos.doTrade();//start do trade
+                //pos.doTrade(30);//start do trade
             }
-            if (ActivityCompat.checkSelfPermission(RavenActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PERMISSION_GRANTED) {
-                //申请权限
-                ActivityCompat.requestPermissions(RavenActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE);
-            }
-            */
-          //  int keyIdex = getKeyIndex();
-            pos.doTrade(30);//start do trade
         }
 
         @Override
@@ -1641,37 +1622,17 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         public void onReturnCustomConfigResult(boolean isSuccess, String result) {
             TRACE.d("onReturnCustomConfigResult(boolean isSuccess, String result):" + isSuccess + TRACE.NEW_LINE + result);
             message.postValue("result: " + isSuccess + "\ndata: " + result);
-            onCompleteTransaction(new RuntimeException("Emv successfully injected"),100);
+            if(isSuccess){
+                SharedPreferencesUtils.getInstance().setValue(getResources().getString(R.string.loadedDevice),true);
+                pos.doTrade();
+            }else {
+                onProcessingError(new RuntimeException("Emv failed to  inject"),1010);
+            }
         }
 
         @Override
         public void onRequestSetPin() {
             TRACE.i("onRequestSetPin()");
-
-           // pinDialog.show();
-       /*
-            txtUserPin.addTextChangedListener(new TextWatcher() {
-                @Override
-                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
-                }
-
-                @Override
-                public void onTextChanged(CharSequence s, int start, int before, int count) {
-                    String pin = s.toString();
-                    if (pin.length() == 4) {
-                        pos.sendPin(pin);
-                        pinDialog.dismiss();
-                        txtUserPin.setText("");
-                    }
-                }
-
-                @Override
-                public void afterTextChanged(Editable s) {
-
-                }
-            });
-        */
             dialog = new Dialog(RavenActivity.this);
             dialog.setContentView(R.layout.pin_dialog);
             dialog.setTitle(getString(R.string.enter_pin));
@@ -1695,7 +1656,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 }
             });
             dialog.findViewById(R.id.bypassButton).setOnClickListener(new View.OnClickListener() {
-
                 @Override
                 public void onClick(View v) {
 //					pos.bypassPin();

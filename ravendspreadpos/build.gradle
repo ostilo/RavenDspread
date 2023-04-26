@@ -69,10 +69,10 @@ dependencies {
     implementation files('libs/dspread_pos_sdk_3.9.9.jar'){
 
     }
-    //implementation 'com.google.code.gson:gson:2.9.0'
+   // implementation 'com.google.code.gson:gson:2.9.0'
 
 
-    //  implementation files('libs\\gson-2.2.2.jar')
+        implementation files('libs/gson-2.2.2.jar')
     implementation files('libs/mpaysdk.jar')
 
   //  implementation 'com.google.code.gson:gson:2.9.0'
