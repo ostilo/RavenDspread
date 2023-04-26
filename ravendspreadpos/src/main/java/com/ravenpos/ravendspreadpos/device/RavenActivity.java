@@ -361,10 +361,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }catch (Exception ex){
             AppLog.e("getInitTermConfig", ex.getLocalizedMessage());
         }
-        //ArrayList<String> list = new ArrayList<String>();
-//        list.add(EmvAppTag.Terminal_type+"22");
-//        list.add(EmvAppTag.Additional_Terminal_Capabilities+"E000F0A001");
-//        pos.updateEmvAPP(QPOSService.EMVDataOperation.Add,list);
      // injectDevice();
     }
 
