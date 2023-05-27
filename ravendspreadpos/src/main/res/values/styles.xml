@@ -15,13 +15,68 @@
         <item name="colorOnSecondary">@color/black</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">@color/purple_200</item>
-        <item name="fontFamily">@font/mul_regu</item>
+        <item name="fontFamily">@font/br_bold</item>
         <!-- Customize your theme here. -->
 
     </style>
     <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+    <style name="textview" parent="match_wrap">
+        <item name="android:drawablePadding">@dimen/dp_16</item>
+        <item name="android:layout_marginBottom">@dimen/dp_5</item>
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Medium</item>
+    </style>
+
+    <style name="textview2" parent="textview">
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Body2</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">@color/pass_toggle</item>
+        <item name="android:textSize">@dimen/sp_15</item>
+        <item name="android:drawablePadding">@dimen/dp_16</item>
+    </style>
+
+    <style name="my_button">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">@dimen/fab_margin</item>
+        <item name="background">@drawable/button_background</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+    <style name="account_option_radio_style">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:padding">16dp</item>
+        <item name="android:textColor">@color/black</item>
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Medium</item>
+    </style>
+    <style name="num_pad_button_style">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:clickable">true</item>
+        <item name="android:padding">2dp</item>
+        <item name="android:background">?selectableItemBackground</item>
+    </style>
+    <style name="num_pad_number_strip_style">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:weightSum">3</item>
+    </style>
+    <style name="num_pad_text_style">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/section_green</item>
+    </style>
+
+    <style name="toolbarStyle" >
+        <item name="android:textColorPrimary">@color/black</item>
+        <item name="android:textColorSecondary">@color/black</item>
+    </style>
 
     <style name="matchwrap">
         <item name="android:layout_width">match_parent</item>

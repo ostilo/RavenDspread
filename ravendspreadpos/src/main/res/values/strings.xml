@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <string name="txt_back">Back</string>
+
+
     <string name="defaultloading">Please wait…</string>
     <string name="data">data</string>
     <string name="audio">Audio</string>
@@ -180,5 +184,14 @@
     <string name="purchase_transaction">Purchase Transaction</string>
     <string name="connect">Connecting to bluetooth</string>
     <string name="title_activity_raven">RavenActivity</string>
+    <string name="see_how_to_connect">See how to connect</string>
+    <string name="connect_bluetooth">Connect Bluetooth</string>
+    <string name="searching_for_device">Searching for device...</string>
+    <string name="available_connections">Available Connections</string>
+    <string name="connect_to_device">Connect to device</string>
+    <string name="powered_by_raven">Powered by <font color='#003c3b'>Raven</font></string>
+    <string name="give_the_user_your_device">Give the user your device to enter their Card PIN or guide them to use the <font color='#D28F40'>Scan PIN</font> method.</string>
+    <string name="proceed">Proceed</string>
+    <string name="card_pin">Card PIN</string>
 
 </resources>

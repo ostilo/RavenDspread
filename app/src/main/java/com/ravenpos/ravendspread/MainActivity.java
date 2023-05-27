@@ -3,8 +3,6 @@ package com.ravenpos.ravendspread;
 import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -14,7 +12,6 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -23,18 +20,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.MutableLiveData;
-
-import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.device.RavenActivity;
-import com.ravenpos.ravendspreadpos.device.WelcomeActivity;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
 import com.ravenpos.ravendspreadpos.utils.Constants;
 import com.ravenpos.ravendspreadpos.utils.MyHandler;
 import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 public class MainActivity extends AppCompatActivity implements TransactionListener {
     private final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     private MyHandler handler;
@@ -177,7 +168,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         intent.putExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE, "10");
         intent.putExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, amount);
         intent.putExtra(Constants.TERMINAL_ID, "2030LQ01");
-        intent.putExtra(Constants.INTENT_BLUETOOTH_DEVICE_TYPE, true);
+        intent.putExtra(Constants.INTENT_BLUETOOTH_DEVICE_TYPE, false);
 
         //5849377320EA67F846DC19EA086DCE15
         //  intent.putExtra(Constants.INTENT_CLEAR_MASTER_KEY, "1A6101B94AFDF26B8FAB292A263BF467");
@@ -211,12 +202,12 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         if (data != null && data.hasExtra("data")) {
             String responseR = data.getStringExtra("data");
 
-            RavenEmv response  =
-                    //new Gson.
-                     (RavenEmv) data.getSerializableExtra("data");
+            //RavenEmv response  =
+                   // new Gson().to
+                     //(RavenEmv) data.getSerializableExtra("data");
             new AlertDialog.Builder(this)
-                    .setTitle(response.dataModel.RRN)
-                    .setMessage(response.dataModel.responseCode)
+                   // .setTitle(responseR)
+                    .setMessage(responseR)
                     .setPositiveButton("Okay", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {

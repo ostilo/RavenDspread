@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    android:background="@color/white"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    >
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_marginBottom="@dimen/dp_20"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <include
+                layout="@layout/custom_toolbar"/>
+<LinearLayout
+    android:layout_marginStart="@dimen/dp_20"
+    android:layout_marginEnd="@dimen/dp_20"
+    android:layout_marginBottom="@dimen/dp_20"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <TextView
+        android:text="@string/connect_bluetooth"
+        android:layout_marginEnd="@dimen/dp_20"
+        android:layout_marginTop="@dimen/dp_30"
+        android:gravity="center_horizontal"
+        android:layout_width="wrap_content"
+        android:textColor="@color/section_green"
+        android:textSize="@dimen/sp_18"
+        android:fontFamily="@font/br_black"
+        android:textStyle="bold"
+        android:layout_gravity="center_vertical"
+        android:layout_height="wrap_content"
+        />
+
+    <ImageView
+        android:contentDescription="@string/connect_bluetooth"
+        android:layout_marginTop="@dimen/dp_50"
+        android:padding="@dimen/dp_10"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/circle_bluetooth"
+        android:src="@drawable/baseline_bluetooth"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+    <TextView
+        android:text="@string/searching_for_device"
+        android:gravity="center_horizontal"
+        android:layout_marginTop="@dimen/dp_30"
+        android:layout_width="match_parent"
+        android:textColor="@color/section_green"
+        android:textSize="@dimen/sp_12"
+        android:fontFamily="@font/br_bold"
+        android:textStyle="bold"
+        android:layout_gravity="center_vertical"
+        android:layout_height="wrap_content"
+        />
+    <TextView
+        android:layout_marginStart="@dimen/dp_15"
+        android:text="@string/available_connections"
+        android:gravity="center_horizontal"
+        android:layout_marginTop="@dimen/dp_70"
+        android:layout_width="wrap_content"
+        android:textColor="@color/pass_toggle"
+        android:textSize="@dimen/sp_12"
+        android:fontFamily="@font/br_medium"
+        android:textStyle="bold"
+        android:layout_height="wrap_content"
+        />
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/guarantor_recyclerView"
+        android:background="@drawable/radio_bluetooth"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        android:layout_width="match_parent"
+        android:layout_marginTop="@dimen/dp_10"
+        android:layout_marginBottom="@dimen/dp_40"
+        android:layout_height="wrap_content"
+        app:stackFromEnd="true"
+        app:reverseLayout="true"
+        android:scrollbars="none"
+        tools:itemCount="@integer/weight_1"
+        tools:listitem="@layout/device_list_item"
+        />
+
+
+
+    <Button
+        android:id="@+id/btnContinue"
+        style="@style/my_button"
+        android:elevation="@dimen/dp_0"
+        app:backgroundTint="@null"
+        android:enabled="false"
+        android:layout_marginStart="@dimen/dp_15"
+        android:textAllCaps="false"
+        android:textSize="@dimen/sp_12"
+        android:fontFamily="@font/br_medium"
+        android:background="@drawable/button_background"
+        android:layout_margin="@dimen/medium"
+        android:text="@string/connect_to_device" />
+
+    <TextView
+        android:text="@string/powered_by_raven"
+        android:gravity="center"
+        android:layout_width="wrap_content"
+        android:textSize="@dimen/sp_12"
+        android:fontFamily="@font/br_bold"
+        android:background="@drawable/grey_bluetooth"
+        android:textStyle="bold"
+        android:padding="@dimen/dp_8"
+        android:layout_gravity="center"
+        android:layout_height="wrap_content"
+        />
+</LinearLayout>
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

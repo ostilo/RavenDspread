@@ -3,6 +3,7 @@ package com.ravenpos.ravendspreadpos.device;
 import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 
+import static com.google.android.material.internal.ContextUtils.getActivity;
 import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.byteArrayToHexString;
 import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.hexStringToByteArray;
 import static com.ravenpos.ravendspreadpos.utils.StringUtils.getTransactionTesponse;
@@ -29,11 +30,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -41,6 +46,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.MutableLiveData;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.dspread.xpos.CQPOSService;
 import com.dspread.xpos.QPOSService;
@@ -57,6 +63,8 @@ import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
 import com.ravenpos.ravendspreadpos.model.BluetoothModel;
 import com.ravenpos.ravendspreadpos.network.Baas;
 
+import com.ravenpos.ravendspreadpos.pos.BluetoothDeviceAdapter;
+import com.ravenpos.ravendspreadpos.pos.IBluetooth;
 import com.ravenpos.ravendspreadpos.pos.KSNUtilities;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
 import com.ravenpos.ravendspreadpos.utils.AppLog;
@@ -64,6 +72,7 @@ import com.ravenpos.ravendspreadpos.utils.Constants;
 import com.ravenpos.ravendspreadpos.utils.DeviceType;
 import com.ravenpos.ravendspreadpos.utils.MessagePacker;
 import com.ravenpos.ravendspreadpos.utils.RavenEmv;
+import com.ravenpos.ravendspreadpos.utils.RavenExtensions;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 import com.ravenpos.ravendspreadpos.utils.TransactionMessage;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
@@ -98,7 +107,7 @@ import Decoder.BASE64Decoder;
 import Decoder.BASE64Encoder;
 
 
-public class RavenActivity extends BaseActivity implements TransactionListener {
+public class RavenActivity extends BaseActivity implements TransactionListener, IBluetooth, TextWatcher {
     private MutableLiveData<String> message;
     private final String currencyCode = "566";
     private ActivityRavenBinding binding;
@@ -127,10 +136,69 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
     private String deviceSignCert;
     private BottomSheetDialog pinDialog;
+
+    private Button btnContinue;
    // private PinView txtUserPin;
 
     private RavenActivity.POS_TYPE posType = RavenActivity.POS_TYPE.BLUETOOTH;
     int flags = 0;
+
+    @Override
+    public void getSelectedDevice(@NonNull BluetoothModel model) {
+        this.model = model;
+        String btDeviceT =  model.address;
+       // stateDialog.dismiss();
+
+
+    }
+
+    @Override
+    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+    }
+
+    @Override
+    public void onTextChanged(CharSequence s, int start, int before, int count) {
+        String pin = s.toString();
+
+        if(pin.length() == 4){
+            clearPinText = pin;
+
+            binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinTwo.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinThree.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinFour.setBackgroundResource(R.drawable.pin_circle_checked);
+        }else if(s.length() == 3){
+            binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinTwo.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinThree.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinFour.setBackgroundResource(R.drawable.pin_circle);
+        }
+        else if(s.length() == 2){
+            binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinTwo.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinThree.setBackgroundResource(R.drawable.pin_circle);
+            binding.pinFour.setBackgroundResource(R.drawable.pin_circle);
+        }
+        else if(s.length() == 1){
+            binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
+            binding.pinTwo.setBackgroundResource(R.drawable.pin_circle);
+            binding.pinThree.setBackgroundResource(R.drawable.pin_circle);
+            binding.pinFour.setBackgroundResource(R.drawable.pin_circle);
+        }
+        else if(TextUtils.isEmpty(s)){
+            binding.pinOne.setBackgroundResource(R.drawable.pin_circle);
+            binding.pinTwo.setBackgroundResource(R.drawable.pin_circle);
+            binding.pinThree.setBackgroundResource(R.drawable.pin_circle);
+            binding.pinFour.setBackgroundResource(R.drawable.pin_circle);
+        }
+    }
+
+    @Override
+    public void afterTextChanged(Editable s) {
+
+    }
+
     private enum POS_TYPE {
         BLUETOOTH, AUDIO, UART, USB, OTG, BLUETOOTH_BLE
     }
@@ -206,9 +274,24 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             pos.scanQPos2Mode(RavenActivity.this, 20);
         }
     }
+    private BluetoothDeviceAdapter adapter;
+    private RecyclerView recyclerView;
+
+
     @SuppressLint("MissingPermission")
     private void selectBluetoothDevice(ArrayList<BluetoothModel> bluetoothModelArrayList) {
         ArrayList<BluetoothModel> deviceNames = bluetoothModelArrayList;
+        adapter.swapData(deviceNames);
+       // stateDialog.show();
+
+
+        RavenExtensions.INSTANCE.gone(binding.posTranParent);
+        RavenExtensions.INSTANCE.gone(binding.posPinParent);
+        RavenExtensions.INSTANCE.visible(binding.posBluetoothParent);
+
+     //   pinDialog.show();
+
+
         ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, deviceNames){
             @NonNull
             @Override
@@ -218,6 +301,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                 return view;
             }
         };
+
         AlertDialog.Builder alertDialog =  new AlertDialog.Builder(this);
         alertDialog.setAdapter(adapter, new DialogInterface.OnClickListener() {
             @Override
@@ -227,13 +311,11 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
 
                 dialog.dismiss();
                 onBTPosSelected(btDeviceT);
-               // open(CommunicationMode.BLUETOOTH);
-                //posType = POS_TYPE.BLUETOOTH;
-                //open(CommunicationMode.BLUETOOTH);
+
             }
         });
         alertDialog.setTitle("Select Bluetooth Device");
-        alertDialog.show();
+     //   alertDialog.show();
     }
 
     private void onBTPosSelected(String blueTootchAdd){
@@ -242,16 +324,142 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         }
         pos.connectBluetoothDevice(true, 25, blueTootchAdd);
     }
+
+    private BottomSheetDialog stateDialog;
+
+    private BluetoothModel model;
+
+    private void initBluetoothView(View view){
+        try {
+//            stateDialog =  new BottomSheetDialog(this);
+//            stateDialog.setContentView(R.layout.bluetooth_connection);
+//            stateDialog.setCancelable(false);
+
+
+//            pinDialog =  new BottomSheetDialog(this);
+//            pinDialog.setContentView(R.layout.pin_connection);
+//            pinDialog.setCancelable(false);
+
+//            pinDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+//            pinDialog.setOnShowListener(new DialogInterface.OnShowListener() {
+//                @Override
+//                public void onShow(DialogInterface dialog) {
+//                    BottomSheetDialog d = (BottomSheetDialog) dialog;
+//                    FrameLayout sheet =
+//                            d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+//                    assert sheet != null;
+//                    BottomSheetBehavior<View> behavior = BottomSheetBehavior.from((View)sheet);
+//                    behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+//                    behavior.setPeekHeight(700);
+//                    behavior.setFitToContents(false);
+//                   // behavior.setExpandedOffset(100);
+//
+//                   // int newHeight = ((Activity) getApplicationContext()).getWindow().getDecorView().getMeasuredHeight();
+////
+////                    ViewGroup.LayoutParams viewGroupLayoutParams = sheet.getLayoutParams();
+////                    int height = getResources().getDisplayMetrics().heightPixels;
+////                    float density = getResources().getDisplayMetrics().density;
+////
+////                    float finals =  height/density;
+//
+//
+//                    //viewGroupLayoutParams.height =
+//                  //  sheet.setLayoutParams( viewGroupLayoutParams);
+//
+//                }
+//            });
+
+
+           /// recyclerView = stateDialog.findViewById(R.id.guarantor_recyclerView);
+           // btnContinue = stateDialog.findViewById(R.id.btnContinue);
+          binding.btnContinueBlue.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+
+                    String btDeviceT = model.address;
+                    onBTPosSelected(btDeviceT);
+
+                    RavenExtensions.INSTANCE.visible(binding.posTranParent);
+                    RavenExtensions.INSTANCE.gone(binding.posPinParent);
+                    RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
+
+                }
+            });
+
+
+            binding.amountText.addTextChangedListener(this);
+            binding.btnContinuePin.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String pinSet = clearPinText;
+                            //binding.amountText.getText().toString();
+
+                    //String pin = "21232";
+                    if (pinSet.length() == 4) {
+                        clearPinText = pinSet;
+//                        if (pin.equals("000000")) {
+//                            pos.sendEncryptPin("5516422217375116");
+//
+//                        } else {
+//                            pos.sendPin(pin);
+//                        }
+                        RavenExtensions.INSTANCE.visible(binding.posTranParent);
+                        RavenExtensions.INSTANCE.gone(binding.posPinParent);
+                        RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
+                        pos.sendPin(pinSet);
+                        dismissDialog();
+                    } else {
+                        Toast.makeText(RavenActivity.this, "The length just can input 4digits", Toast.LENGTH_LONG).show();
+                    }
+
+                }
+            });
+            /*
+            LinearLayout parentCell = stateDialog.findViewById(R.id.back_arrow);
+            if (parentCell != null) {
+                LinearLayout btnBack = parentCell.findViewById(R.id.backArrowPost);
+                btnBack.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        onCompleteTransaction(new RuntimeException("Transaction not complete"),10);
+                    }
+                });
+            }
+             */
+/*
+
+            stateDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            stateDialog.setOnShowListener(new DialogInterface.OnShowListener() {
+                @Override
+                public void onShow(DialogInterface dialog) {
+                    BottomSheetDialog d = (BottomSheetDialog) dialog;
+                    FrameLayout sheet =
+                            d.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+                    assert sheet != null;
+                    BottomSheetBehavior<View> behavior = BottomSheetBehavior.from((View)sheet);
+                    behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                }
+            });
+ */
+        }catch (Exception e){
+            AppLog.e("setOnShowListener",e.getLocalizedMessage());
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityRavenBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        adapter = new BluetoothDeviceAdapter(this, this);
+        initBluetoothView(binding.getRoot());
+         binding.recyclerView.setAdapter(adapter);
+
+        binding.keyPad.registerDisplayDelegate(binding.amountText);
         Intent intent = getIntent();
         _responseCode = "00";
         ksnUtilities = new KSNUtilities();
-       // String rr = ksnUtilities.desEncrypt("04319DCBB86B7B6E","9DFB23DC0EE3899B26DFBA372570A151");
-      // mApiService = AppUtils.getAPIService();
+
         if (intent != null) {
             totalAmount = intent.getDoubleExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, 0.0);
             accountType = intent.getStringExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE);
@@ -319,12 +527,13 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             AppLog.e("encryptedPinData",e.getLocalizedMessage());
         }
     }
+
     public static boolean isUSBDetected(){
         USBClass usb = new USBClass();
         ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getINSTANCE());
         if(deviceList == null) return  false;
         final ArrayList<String> items = deviceList;
-        if(items.size() <= 0)return  false;else return true;
+        if(items.size() == 0)return  false;else return true;
     }
 
     private void initListener(){
@@ -352,6 +561,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         AlertDialog alert = builder.create();
         alert.show();
     }
+
     private ArrayList list = new ArrayList();
 
     private void getInitTermConfig(){
@@ -508,143 +718,144 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
     }
     @Override
     public void onCompleteTransaction(TransactionResponse response)  {
-        RavenEmv ravenEmv = new RavenEmv();
-        response.TerminaID = terminalId;
-        response.totalAmoount = String.valueOf(totalAmount.intValue());
-        response.amount = String.valueOf(totalAmount.intValue());
-        ravenEmv.dataModel = response;
-        String fullPay = new Gson().toJson(response);
-        showResult(binding.posViewUpdate, "");
-        Log.e("TRANS DONE", new Gson().toJson(response));
-        Gson gson = new Gson();
+        try {
+            RavenEmv ravenEmv = new RavenEmv();
+            response.TerminaID = terminalId;
+            response.totalAmoount = String.valueOf(totalAmount.intValue());
+            response.amount = String.valueOf(totalAmount.intValue());
+            ravenEmv.dataModel = response;
+            String fullPay = new Gson().toJson(response);
+            showResult(binding.posViewUpdate, "");
+            Log.e("TRANS DONE", new Gson().toJson(response));
+            Gson gson = new Gson();
 
-        TransactionMessage msg = new TransactionMessage();
-        msg.setField0("0200");
-        msg.setField2(response.CardNo);
-        msg.setField3("00"+accountType+"00");
-        msg.setTotalamount(String.valueOf(totalAmount.intValue()));
-        msg.setField4(getField4(String.valueOf(totalAmount.intValue())+ "00"));
+            TransactionMessage msg = new TransactionMessage();
+            msg.setField0("0200");
+            msg.setField2(response.CardNo);
+            msg.setField3("00"+accountType+"00");
+            msg.setTotalamount(String.valueOf(totalAmount.intValue()));
+            msg.setField4(getField4(String.valueOf(totalAmount.intValue())+ "00"));
 
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MMddhhmmss");
-        String datetime = simpleDateFormat.format(new Date());
-        msg.setField7(datetime);
-
-
-        SimpleDateFormat dateFormatStan = new SimpleDateFormat("yyyyMMddHHmmssSSS");
-        //simpleDateFormat = new SimpleDateFormat("hhmmss");
-        String stan = dateFormatStan.format(new Date());
-        String newStan = stan.substring(stan.length() - 6);
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MMddhhmmss");
+            String datetime = simpleDateFormat.format(new Date());
+            msg.setField7(datetime);
 
 
-        msg.setField11(newStan);
-        msg.setField12(newStan);
+            SimpleDateFormat dateFormatStan = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+            //simpleDateFormat = new SimpleDateFormat("hhmmss");
+            String stan = dateFormatStan.format(new Date());
+            String newStan = stan.substring(stan.length() - 6);
 
-        simpleDateFormat = new SimpleDateFormat("MMdd");
-        String date = simpleDateFormat.format(new Date());
-        msg.setField13(date);
 
-        msg.setField14(getExpiryDate(response.Track2));
-        msg.setField18("5251");
-        msg.setField22("051");
-        msg.setField23(response.CardSequenceNumber);
-        msg.setField25("00");
-        msg.setField26("06");//12;
-        msg.setField28("D00000000");
-        msg.setField32(response.Track2.substring(0, 6));
-        msg.setField35(response.Track2);
-        // SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmssSSS");
-        ///String pre = dateFormat.format(new Date());
-        String newPre = stan.substring(stan.length() - 12);
-        ravenEmv.dataModel.RRN = newPre;
-        msg.setField37(newPre);
-        msg.setField40(getServiceCode(response.Track2));
-        msg.setField41(response.TerminaID);
-        msg.setField42(Mid);
-        //  msg.setField42("2030LA000490601");
-        msg.setField43(businessName);
-        msg.setField49("566");
-        //04319DCBB86B7B6E
-        if(response.PinBlock != null){
-            if (!response.PinBlock.isEmpty()) {
-                String plainPin = ksnUtilities.encryptPinBlock(response.CardNo,clearPinText);
-                try {
-                    response.PinBlock  = encryptPinData(plainPin,clearPinKey);
-                    msg.setField52(response.PinBlock);
-                    msg.setPinblock(response.PinBlock);
-                } catch (InvalidKeyException e) {
-                    throw new RuntimeException(e);
-                } catch (NoSuchAlgorithmException e) {
-                    throw new RuntimeException(e);
-                } catch (NoSuchPaddingException e) {
-                    throw new RuntimeException(e);
-                } catch (IllegalBlockSizeException e) {
-                    throw new RuntimeException(e);
-                } catch (BadPaddingException e) {
-                    throw new RuntimeException(e);
-                } catch (InvalidKeySpecException e) {
-                    throw new RuntimeException(e);
-                }
+            msg.setField11(newStan);
+            msg.setField12(newStan);
 
-                if(!response.PinBlock.equals("31393937")){
-                   // msg.setField52(response.PinBlock);
+            simpleDateFormat = new SimpleDateFormat("MMdd");
+            String date = simpleDateFormat.format(new Date());
+            msg.setField13(date);
+
+            msg.setField14(getExpiryDate(response.Track2));
+            msg.setField18("5251");
+            msg.setField22("051");
+            msg.setField23(response.CardSequenceNumber);
+            msg.setField25("00");
+            msg.setField26("06");//12;
+            msg.setField28("D00000000");
+            msg.setField32(response.Track2.substring(0, 6));
+            msg.setField35(response.Track2);
+            // SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+            ///String pre = dateFormat.format(new Date());
+            String newPre = stan.substring(stan.length() - 12);
+            ravenEmv.dataModel.RRN = newPre;
+            msg.setField37(newPre);
+            msg.setField40(getServiceCode(response.Track2));
+            msg.setField41(response.TerminaID);
+            msg.setField42(Mid);
+            //  msg.setField42("2030LA000490601");
+            msg.setField43(businessName);
+            msg.setField49("566");
+
+            if(response.PinBlock != null){
+                if (!response.PinBlock.isEmpty()) {
+                    String plainPin = ksnUtilities.encryptPinBlock(response.CardNo,clearPinText);
+                    try {
+                        response.PinBlock  = encryptPinData(plainPin,clearPinKey);
+                        msg.setField52(response.PinBlock);
+                        msg.setPinblock(response.PinBlock);
+                    } catch (InvalidKeyException e) {
+                        throw new RuntimeException(e);
+                    } catch (NoSuchAlgorithmException e) {
+                        throw new RuntimeException(e);
+                    } catch (NoSuchPaddingException e) {
+                        throw new RuntimeException(e);
+                    } catch (IllegalBlockSizeException e) {
+                        throw new RuntimeException(e);
+                    } catch (BadPaddingException e) {
+                        throw new RuntimeException(e);
+                    } catch (InvalidKeySpecException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    if(!response.PinBlock.equals("31393937")){
+                        // msg.setField52(response.PinBlock);
+                    }
                 }
             }
-        }
-        msg.setField55(response.IccData);
+            msg.setField55(response.IccData);
 
-        msg.setField123("510101511344101");
+            msg.setField123("510101511344101");
 
-        msg.setClrsesskey(clearSessionKey);
-        msg.setPort(port);
-        msg.setHost(Ip);
-        msg.setSsl(true);
-        msg.setTotalamount(String.valueOf(totalAmount.intValue()));
-        msg.setRrn(newPre);
-        msg.setStan(newStan);
-        msg.setTrack(response.Track2);
-        msg.setExpirydate(getExpiryDate(response.Track2));
-        msg.setPan(response.CardNo);
-        msg.setTid(terminalId);
+            msg.setClrsesskey(clearSessionKey);
+            msg.setPort(port);
+            msg.setHost(Ip);
+            msg.setSsl(true);
+            msg.setTotalamount(String.valueOf(totalAmount.intValue()));
+            msg.setRrn(newPre);
+            msg.setStan(newStan);
+            msg.setTrack(response.Track2);
+            msg.setExpirydate(getExpiryDate(response.Track2));
+            msg.setPan(response.CardNo);
+            msg.setTid(terminalId);
 
-        msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
-        msg.setUnpredictable(SharedPreferencesUtils.getInstance().getStringValue("9F37", ""));
-        msg.setCapabilities(SharedPreferencesUtils.getInstance().getStringValue("9F33", ""));
-        msg.setCryptogram(SharedPreferencesUtils.getInstance().getStringValue("9F26", ""));
-        msg.setTvr(SharedPreferencesUtils.getInstance().getStringValue("95", ""));
+            msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
+            msg.setUnpredictable(SharedPreferencesUtils.getInstance().getStringValue("9F37", ""));
+            msg.setCapabilities(SharedPreferencesUtils.getInstance().getStringValue("9F33", ""));
+            msg.setCryptogram(SharedPreferencesUtils.getInstance().getStringValue("9F26", ""));
+            msg.setTvr(SharedPreferencesUtils.getInstance().getStringValue("95", ""));
 
-        msg.setIad(SharedPreferencesUtils.getInstance().getStringValue("9F10", ""));
+            msg.setIad(SharedPreferencesUtils.getInstance().getStringValue("9F10", ""));
 
-        msg.setCvm(SharedPreferencesUtils.getInstance().getStringValue("9F34", ""));
+            msg.setCvm(SharedPreferencesUtils.getInstance().getStringValue("9F34", ""));
 
-        msg.setCip("");
-        msg.setAmount(String.valueOf(totalAmount.intValue()));
+            msg.setCip("");
+            msg.setAmount(String.valueOf(totalAmount.intValue()));
 
-        msg.setAtc(SharedPreferencesUtils.getInstance().getStringValue("9F36", ""));
+            msg.setAtc(SharedPreferencesUtils.getInstance().getStringValue("9F36", ""));
 
-        msg.setAip(SharedPreferencesUtils.getInstance().getStringValue("82", ""));
+            msg.setAip(SharedPreferencesUtils.getInstance().getStringValue("82", ""));
 
-        msg.setPanseqno(response.CardSequenceNumber);
+            msg.setPanseqno(response.CardSequenceNumber);
 
-        msg.setClrpin(clearPinKey);
+            msg.setClrpin(clearPinKey);
 
-        msg.setAccount(getAccountTypeString(accountType));
+            msg.setAccount(getAccountTypeString(accountType));
 
-        msg.setSn(snKey);
+            msg.setSn(snKey);
 
-        msg.setMid(Mid);
+            msg.setMid(Mid);
 
-        msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
-        msg.setField128(MessagePacker.generateHashData(msg));
+            msg.setFilename(SharedPreferencesUtils.getInstance().getStringValue("84", ""));
+            msg.setField128(MessagePacker.generateHashData(msg));
 
-        String msgToIso = new Gson().toJson(msg);
-        AppLog.e("msgToIso",msgToIso);
-        ravenEmv.nibbsEmv = msg;
-        String fullRes = new Gson().toJson(ravenEmv);
-        Intent intent = new Intent();
-       // intent.putExtra(getString(R.string.data), ravenEmv);
-        intent.putExtra(getString(R.string.data), fullRes);
-        setResult(Activity.RESULT_OK, intent);
-        finish();
+            String msgToIso = new Gson().toJson(msg);
+            AppLog.e("msgToIso",msgToIso);
+            ravenEmv.nibbsEmv = msg;
+            String fullRes = new Gson().toJson(ravenEmv);
+            Intent intent = new Intent();
+            // intent.putExtra(getString(R.string.data), ravenEmv);
+            intent.putExtra(getString(R.string.data), fullRes);
+            setResult(Activity.RESULT_OK, intent);
+            finish();
  /*
         Call<Object> userCall = mApiService.performTransaction("98220514989004", "Horizonpay", "K11", "1.0.0", msg);
         userCall.enqueue(new Callback<Object>() {
@@ -668,6 +879,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
             }
         });
   */
+        }catch (Exception e){
+            AppLog.e("onCompleteTransaction",e.getLocalizedMessage());
+        }
     }
 
     public void onCompleteTransaction(RuntimeException message, int errorcode) {
@@ -1633,6 +1847,11 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
         @Override
         public void onRequestSetPin() {
             TRACE.i("onRequestSetPin()");
+
+            RavenExtensions.INSTANCE.gone(binding.posTranParent);
+            RavenExtensions.INSTANCE.visible(binding.posPinParent);
+            RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
+
             dialog = new Dialog(RavenActivity.this);
             dialog.setContentView(R.layout.pin_dialog);
             dialog.setTitle(getString(R.string.enter_pin));
@@ -1673,7 +1892,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener {
                     onProcessingError(new RuntimeException("PIN Cancelled"),100);
                 }
             });
-           dialog.show();
+         //  dialog.show();
         }
 
         @Override
