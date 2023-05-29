@@ -10,4 +10,5 @@
     <color name="dark_gray">#A4A4A4</color>
     <color name="light_grey">#e3e3e3</color>
     <color name="overlayColor">#7EFFEDED</color>
+    <color name="primary_color">#FF000000</color>
 </resources>

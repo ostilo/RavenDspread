@@ -16,8 +16,8 @@
     <color name="pass_toggle">#343434</color>
     <color name="error">#F2C94C</color>
     <color name="teal_200">#D28F40</color>
-    <color name="section_green">#003c3b</color>
+    <color name="primary_color">#003c3b</color>
     <color name="divider_line">#E6E6E6</color>
-
+    <color name="close_bg">#33696b</color>
 
 </resources>

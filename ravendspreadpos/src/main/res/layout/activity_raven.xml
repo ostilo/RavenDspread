@@ -1,11 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
+    android:background="@color/white"
     android:layout_height="match_parent">
-
-   <LinearLayout
+ <LinearLayout
+     android:id="@+id/closeBtn"
+     android:background="@color/white"
+     android:orientation="horizontal"
+     android:layout_gravity="end"
+     android:layout_marginTop="@dimen/dp_20"
+     android:layout_width="wrap_content"
+     android:layout_height="wrap_content">
+     <ImageButton
+         android:id="@+id/btnCloseSheet"
+         android:layout_width="@dimen/dp_40"
+         android:layout_height="@dimen/dp_40"
+         android:layout_gravity="end"
+         android:alpha="0.5"
+         android:contentDescription="@string/connect_bluetooth"
+         android:background="@drawable/close_background"
+         android:padding="@dimen/dp_5"
+         android:src="@drawable/close"
+         app:tint="@color/white" />
+     <TextView
+         android:text="@string/close"
+         android:layout_marginEnd="@dimen/dp_20"
+         android:layout_marginStart="@dimen/dp_10"
+         android:gravity="center_horizontal"
+         android:layout_width="wrap_content"
+         android:textColor="@color/primary_color"
+         android:textSize="@dimen/sp_15"
+         android:fontFamily="@font/br_black"
+         android:textStyle="bold"
+         android:layout_gravity="center_vertical"
+         android:layout_height="wrap_content"
+         />
+ </LinearLayout>
+ <LinearLayout
        android:visibility="visible"
        android:id="@+id/posTranParent"
        android:orientation="vertical"
@@ -43,7 +77,6 @@
         android:visibility="gone"
         android:id="@+id/posPinParent"
         android:background="@color/white"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
@@ -65,7 +98,7 @@
                 android:layout_marginEnd="@dimen/dp_20"
                 android:gravity="center_horizontal"
                 android:layout_width="wrap_content"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 android:textSize="@dimen/sp_20"
                 android:fontFamily="@font/br_bold"
                 android:textStyle="bold"
@@ -172,8 +205,6 @@
         android:background="@color/white"
         android:id="@+id/posBluetoothParent"
         android:visibility="gone"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         >
@@ -192,7 +223,7 @@
                 android:layout_marginTop="@dimen/dp_30"
                 android:gravity="center_horizontal"
                 android:layout_width="wrap_content"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 android:textSize="@dimen/sp_20"
                 android:fontFamily="@font/br_black"
                 android:textStyle="bold"
@@ -214,7 +245,7 @@
                 android:gravity="center_horizontal"
                 android:layout_marginTop="@dimen/dp_30"
                 android:layout_width="match_parent"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 android:textSize="@dimen/sp_12"
                 android:fontFamily="@font/br_bold"
                 android:textStyle="bold"

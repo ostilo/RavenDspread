@@ -15,7 +15,7 @@
             <TextView
                 android:text="1"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style" />
 
         </FrameLayout>
@@ -28,19 +28,19 @@
             <TextView
                 android:text="2"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
 
         <FrameLayout
             android:id="@+id/btn_3"
-            android:textColor="@color/section_green"
+            android:textColor="@color/primary_color"
             style="@style/num_pad_button_style">
 
             <TextView
                 android:text="3"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
     </LinearLayout>
@@ -49,13 +49,13 @@
 
         <FrameLayout
             android:id="@+id/btn_4"
-            android:textColor="@color/section_green"
+            android:textColor="@color/primary_color"
             style="@style/num_pad_button_style">
 
             <TextView
                 android:text="4"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style" />
 
         </FrameLayout>
@@ -63,13 +63,13 @@
 
         <FrameLayout
             android:id="@+id/btn_5"
-            android:textColor="@color/section_green"
+            android:textColor="@color/primary_color"
             style="@style/num_pad_button_style">
 
             <TextView
                 android:text="5"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style" />
         </FrameLayout>
 
@@ -80,7 +80,7 @@
             <TextView
                 android:text="6"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
 
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
@@ -95,7 +95,7 @@
             <TextView
                 android:text="7"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
 
                 style="@style/num_pad_text_style" />
 
@@ -109,7 +109,7 @@
             <TextView
                 android:text="8"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
 
                 style="@style/num_pad_text_style" />
         </FrameLayout>
@@ -121,7 +121,7 @@
             <TextView
                 android:text="9"
                 android:textStyle="bold"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
 
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
@@ -136,7 +136,7 @@
 
             <TextView
                 android:text="."
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 android:textStyle="bold"
                 style="@style/num_pad_text_style" />
 
@@ -149,7 +149,7 @@
 
             <TextView
                 android:text="0"
-                android:textColor="@color/section_green"
+                android:textColor="@color/primary_color"
                 android:textStyle="bold"
                 style="@style/num_pad_text_style" />
         </FrameLayout>
@@ -163,7 +163,7 @@
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
                 android:layout_gravity="center"
-                app:tint="@color/section_green" />
+                app:tint="@color/primary_color" />
         </FrameLayout>
     </LinearLayout>
 

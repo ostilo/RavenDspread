@@ -526,6 +526,13 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         } catch (Exception e) {
             AppLog.e("encryptedPinData",e.getLocalizedMessage());
         }
+
+        binding.closeBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                    onCompleteTransaction(new RuntimeException("Transaction Cancelled"),200);
+            }
+        });
     }
 
     public static boolean isUSBDetected(){
