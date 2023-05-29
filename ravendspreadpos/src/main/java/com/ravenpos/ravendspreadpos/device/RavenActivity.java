@@ -275,12 +275,13 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         }
     }
     private BluetoothDeviceAdapter adapter;
+
     private RecyclerView recyclerView;
 
 
     @SuppressLint("MissingPermission")
     private void selectBluetoothDevice(ArrayList<BluetoothModel> bluetoothModelArrayList) {
-        ArrayList<BluetoothModel> deviceNames = bluetoothModelArrayList;
+        ArrayList<BluetoothModel> deviceNames = new ArrayList<>(RavenExtensions.INSTANCE.sortNonPos(bluetoothModelArrayList));
         adapter.swapData(deviceNames);
        // stateDialog.show();
 

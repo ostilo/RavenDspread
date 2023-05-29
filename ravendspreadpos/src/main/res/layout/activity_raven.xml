@@ -71,8 +71,7 @@
            android:layout_width="match_parent"
            android:layout_height="wrap_content"/>
    </LinearLayout>
-
-    <LinearLayout
+  <LinearLayout
         android:layout_marginBottom="@dimen/dp_30"
         android:visibility="gone"
         android:id="@+id/posPinParent"
@@ -200,8 +199,7 @@
             android:layout_height="wrap_content"
             />
     </LinearLayout>
-
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
+ <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:background="@color/white"
         android:id="@+id/posBluetoothParent"
         android:visibility="gone"

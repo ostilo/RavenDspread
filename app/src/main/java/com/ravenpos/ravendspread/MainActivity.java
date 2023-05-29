@@ -168,7 +168,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         intent.putExtra(Constants.INTENT_EXTRA_ACCOUNT_TYPE, "10");
         intent.putExtra(Constants.INTENT_EXTRA_AMOUNT_KEY, amount);
         intent.putExtra(Constants.TERMINAL_ID, "2030LQ01");
-        intent.putExtra(Constants.INTENT_BLUETOOTH_DEVICE_TYPE, false);
+        intent.putExtra(Constants.INTENT_BLUETOOTH_DEVICE_TYPE, true);
 
         //5849377320EA67F846DC19EA086DCE15
         //  intent.putExtra(Constants.INTENT_CLEAR_MASTER_KEY, "1A6101B94AFDF26B8FAB292A263BF467");
