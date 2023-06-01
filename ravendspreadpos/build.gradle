@@ -114,7 +114,7 @@ afterEvaluate {
                 from components.release
                 // You can then customize attributes of the publication as shown below.
                 groupId = 'com.ravenpos'
-                artifactId = 'RavenDspread'
+                artifactId = 'ravendspreadpos'
                 version = '1.0'
             }
         }
