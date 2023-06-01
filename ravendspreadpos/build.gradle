@@ -50,6 +50,19 @@ android {
     buildFeatures {
         viewBinding true
     }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+    namespace 'com.ravenpos.ravendspreadpos'
+
+
 }
 
 dependencies {
@@ -61,7 +74,6 @@ dependencies {
 
     //Dspread SDK
    // implementation 'com.iqiyi.xcrash:xcrash-android-lib:2.4.6'
-    implementation 'com.binioter:guideview:1.0.0'
     implementation files('libs/zxing.jar')
    // implementation 'org.jetbrains:annotations-java5:15.0'
    implementation files('libs/dspread_android_printer_sdk_1.1.jar'){
@@ -105,18 +117,19 @@ dependencies {
 //    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 
 }
-afterEvaluate {
-    publishing {
-        publications {
-            // Creates a Maven publication called "release".
-            release(MavenPublication) {
-                // Applies the component for the release build variant.
+
+publishing {
+    publications {
+        // Creates a Maven publication called "release".
+        release(MavenPublication) {
+            // Applies the component for the release build variant.
+            afterEvaluate {
                 from components.release
-                // You can then customize attributes of the publication as shown below.
-                groupId = 'com.ravenpos'
-                artifactId = 'ravendspreadpos'
-                version = '1.0.0'
             }
+            // You can then customize attributes of the publication as shown below.
+            groupId = 'com.github.ostilo'
+            artifactId = 'RavenDspread'
+            version = '1.0.1'
         }
     }
 }
