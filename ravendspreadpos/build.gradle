@@ -119,6 +119,12 @@ dependencies {
 }
 
 publishing {
+    repositories {
+        maven {
+            name = 'RavenDspread'
+            url = "https://github.com/ostilo/RavenDspread.git"
+        }
+    }
     publications {
         // Creates a Maven publication called "release".
         release(MavenPublication) {
@@ -129,7 +135,7 @@ publishing {
             // You can then customize attributes of the publication as shown below.
             groupId = 'com.github.ostilo'
             artifactId = 'RavenDspread'
-            version = '1.0.3'
+            version = '1.0.4'
         }
     }
 }
