@@ -54,14 +54,13 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-            withJavadocJar()
-        }
-    }
-    namespace 'com.ravenpos.ravendspreadpos'
-
+//    publishing {
+//        singleVariant("release") {
+//            withSourcesJar()
+//            withJavadocJar()
+//        }
+//    }
+    //namespace 'com.ravenpos.ravendspreadpos'
 
 }
 
@@ -117,25 +116,32 @@ dependencies {
 //    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 
 }
+afterEvaluate {
+    publishing {
 
-publishing {
-    repositories {
-        maven {
-            name = 'RavenDspread'
-            url = "https://github.com/ostilo/RavenDspread.git"
-        }
-    }
-    publications {
-        // Creates a Maven publication called "release".
-        release(MavenPublication) {
-            // Applies the component for the release build variant.
-            afterEvaluate {
+        publications {
+            // Creates a Maven publication called "release".
+            release(MavenPublication) {
+                // Applies the component for the release build variant.
                 from components.release
+                // You can then customize attributes of the publication as shown below.
+                groupId = 'com.github.raven'
+                artifactId = 'RavenDspread'
+                version = '1.0.5'
             }
-            // You can then customize attributes of the publication as shown below.
-            groupId = 'com.github.ostilo'
-            artifactId = 'RavenDspread'
-            version = '1.0.4'
         }
     }
 }
+//gradle.taskGraph.whenReady { taskGraph ->
+//    def tasks = taskGraph.getAllTasks()
+//    tasks.each {
+//        def taskName = it.getName()
+//        if(taskName == 'myTask') {
+//            println("Found $taskName")
+//
+//            it.setOnlyIf { true }
+//            it.outputs.upToDateWhen { false }
+//        }
+//    }
+//}
+

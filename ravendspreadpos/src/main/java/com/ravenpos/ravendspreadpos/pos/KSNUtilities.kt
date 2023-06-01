@@ -37,7 +37,6 @@ class KSNUtilities {
             var result = ""
             if (binarycount.substring(0, 1) == "1") {
                 result = "1".padEnd(len, '0')
-                println("The expected value of the result is $result")
                 binarycount = binarycount.substring(1)
                 println("The value of the new binary count is $binarycount")
             } else {
@@ -45,7 +44,7 @@ class KSNUtilities {
                 println("The value of the new binary count is $binarycount")
                 continue
             }
-            val counterKSN2 = Integer.toHexString(Integer.parseInt(result, 2)).toUpperCase().padStart(16, '0')
+            val counterKSN2 = Integer.toHexString(Integer.parseInt(result, 2)).uppercase().padStart(16, '0')
             println("The expected value of the counter ksn 2 is $counterKSN2")
             val newKSN2 = XORorANDorORfunction(newKSNtoleft16, counterKSN2, "|")
             println("The expected value of the new ksn 2 is $newKSN2")
@@ -117,10 +116,9 @@ class KSNUtilities {
         val bout = ByteArrayOutputStream()
         try {
             val keySpec: KeySpec = DESKeySpec(keyData)
-            val key: SecretKey = SecretKeyFactory.getInstance("DES").generateSecret(keySpec)
+            val keyHome: SecretKey = SecretKeyFactory.getInstance("DES").generateSecret(keySpec)
             val cipher: Cipher = Cipher.getInstance("DESede/ECB/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, key)
-            val rr = cipher.doFinal(hexStringToByteArray(desData))
+            cipher.init(Cipher.ENCRYPT_MODE, keyHome)
             bout.write(cipher.doFinal(hexStringToByteArray(desData)))
         } catch (e: Exception) {
             print("Exception DES Encryption.. " + e.printStackTrace())
@@ -130,11 +128,11 @@ class KSNUtilities {
 
 
     fun encryptPinBlock(pan: String, pin: String): String {
-        val pan = pan.substring(pan.length - 13).take(12).padStart(16, '0')
-        println("The expected value of the encrypted pan is $pan")
-        val pin = '0' + pin.length.toString(16) + pin.padEnd(16, 'F')
-        println("The expected value of the clear pin is $pin")
-        return XORorANDorORfunction(pan, pin, "^")
+        val panHome = pan.substring(pan.length - 13).take(12).padStart(16, '0')
+        println("The expected value of the encrypted pan is $panHome")
+        val pinHome = '0' + pin.length.toString(16) + pin.padEnd(16, 'F')
+        println("The expected value of the clear pin is $pinHome")
+        return XORorANDorORfunction(panHome, pinHome, "^")
         //the clear pinblock is returned here
     }
 
@@ -144,13 +142,13 @@ class KSNUtilities {
         var result = ""
         for (i in 0 until a.lastIndex + 1) {
             if (symbol === "|") {
-                result += (Integer.parseInt(a[i].toString(), 16).or(Integer.parseInt(b[i].toString(), 16)).toString(16).toUpperCase())
+                result += (Integer.parseInt(a[i].toString(), 16).or(Integer.parseInt(b[i].toString(), 16)).toString(16).uppercase())
             } else if (symbol === "^") {
                 result += (Integer.parseInt(a[i].toString(), 16).xor
-                    (Integer.parseInt(b[i].toString(), 16)).toString(16).toUpperCase())
+                    (Integer.parseInt(b[i].toString(), 16)).toString(16).uppercase())
             } else {
                 result += (Integer.parseInt(a[i].toString(), 16).and
-                    (Integer.parseInt(b[i].toString(), 16))).toString(16).toUpperCase()
+                    (Integer.parseInt(b[i].toString(), 16))).toString(16).uppercase()
             }
         }
         return result
