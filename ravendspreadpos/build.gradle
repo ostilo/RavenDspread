@@ -118,7 +118,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.ostilo'
                 artifactId = 'ravendspread'
-                version = '1.0.8'
+                version = '1.0.9'
             }
         }
     }
