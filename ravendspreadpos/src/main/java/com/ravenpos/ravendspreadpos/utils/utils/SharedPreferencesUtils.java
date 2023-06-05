@@ -27,7 +27,7 @@ public class SharedPreferencesUtils {
 
     public static synchronized SharedPreferencesUtils getInstance() {
         if (mSharedPreferencesUtils == null) {
-            mSharedPreferencesUtils = new SharedPreferencesUtils(BaseApplication.getINSTANCE());
+            mSharedPreferencesUtils = new SharedPreferencesUtils(BaseApplication.getInstance());
         }
         return mSharedPreferencesUtils;
     }

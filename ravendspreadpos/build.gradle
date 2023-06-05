@@ -67,9 +67,10 @@ dependencies {
    // implementation 'com.iqiyi.xcrash:xcrash-android-lib:2.4.6'
     implementation files('libs/zxing.jar')
    // implementation 'org.jetbrains:annotations-java5:15.0'
-   implementation files('libs/dspread_android_printer_sdk_1.1.jar'){
-     
-   }
+
+    implementation files('libs/dspread_android_printer_sdk_1.1.jar'){
+    }
+
     implementation files('libs/dspread_pos_sdk_3.9.9.jar'){
 
     }
@@ -77,9 +78,11 @@ dependencies {
 
 
         implementation files('libs/gson-2.2.2.jar')
+       // implementation "com.google.code.gson:gson:2.8.9"
+
     implementation files('libs/mpaysdk.jar')
 
-  //  implementation 'com.google.code.gson:gson:2.9.0'
+
 
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
@@ -115,7 +118,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.ostilo'
                 artifactId = 'ravendspread'
-                version = '1.0.7'
+                version = '1.0.8'
             }
         }
     }

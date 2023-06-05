@@ -20,12 +20,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.MutableLiveData;
+
+import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.device.RavenActivity;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
+import com.ravenpos.ravendspreadpos.utils.AppLog;
 import com.ravenpos.ravendspreadpos.utils.Constants;
 import com.ravenpos.ravendspreadpos.utils.MyHandler;
 import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
+
+
 public class MainActivity extends AppCompatActivity implements TransactionListener {
     private final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     private MyHandler handler;
@@ -53,6 +58,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+      //  BaseApplication.setContext(this);
         message = new MutableLiveData<>();
         handler = new MyHandler(this, false);
         findViewById(R.id.btnTest).setOnClickListener(new View.OnClickListener() {
@@ -83,9 +89,13 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
                     throw new RuntimeException(e);
                 }
             */
-//                boolean isEnabled = RavenActivity.isUSBDetected();
-//                String tt = "";
-                bluetoothRelaPer();
+                try {
+                    boolean isEnabled = RavenActivity.isUSBDetected();
+                    String tt = "";
+                }catch (Exception e){
+                    AppLog.e("RavenActivity",e.getLocalizedMessage());
+                }
+             //   bluetoothRelaPer();
             }
         });
     }

@@ -447,11 +447,16 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         }
     }
 
+    private static void setMainContext(Context context){
+        BaseApplication.setContext(context);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityRavenBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        BaseApplication.setContext(this.getApplicationContext());
         adapter = new BluetoothDeviceAdapter(this, this);
         initBluetoothView(binding.getRoot());
          binding.recyclerView.setAdapter(adapter);
@@ -538,7 +543,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
 
     public static boolean isUSBDetected(){
         USBClass usb = new USBClass();
-        ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getINSTANCE());
+        ArrayList<String> deviceList = usb.GetUSBDevices(BaseApplication.getInstance());
         if(deviceList == null) return  false;
         final ArrayList<String> items = deviceList;
         if(items.size() == 0)return  false;else return true;
@@ -1649,9 +1654,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         public void onRequestQposConnected() {
             TRACE.d("onRequestQposConnected()");
             dismissDialog();
-            if(!SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getINSTANCE().getString(R.string.loadedDevice),false)){
+            if(!SharedPreferencesUtils.getInstance().getBooleanValue(BaseApplication.getInstance().getString(R.string.loadedDevice),false)){
                 message.postValue("Card Injection Processing...");
-                pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",BaseApplication.getINSTANCE())));
+                pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",BaseApplication.getInstance())));
             }else {
                 pos.doTrade();//start do trade
                 //pos.doTrade(30);//start do trade
