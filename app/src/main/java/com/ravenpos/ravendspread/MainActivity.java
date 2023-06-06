@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
       //  BaseApplication.setContext(this);
+
         message = new MutableLiveData<>();
         handler = new MyHandler(this, false);
         findViewById(R.id.btnTest).setOnClickListener(new View.OnClickListener() {
