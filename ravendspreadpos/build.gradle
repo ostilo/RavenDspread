@@ -78,7 +78,7 @@ dependencies {
 
 
        // implementation files('libs/gson-2.2.2.jar')
-       implementation "com.google.code.gson:gson:2.8.9"
+       implementation "com.google.code.gson:gson:2.8.0"
 
     implementation files('libs/mpaysdk.jar')
 
@@ -118,7 +118,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.ostilo'
                 artifactId = 'ravendspread'
-                version = '1.1.2'
+                version = '1.1.3'
             }
         }
     }
