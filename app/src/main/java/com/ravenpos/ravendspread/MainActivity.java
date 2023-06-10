@@ -90,13 +90,13 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
                     throw new RuntimeException(e);
                 }
             */
-                try {
-                    boolean isEnabled = RavenActivity.isUSBDetected();
-                    String tt = "";
-                }catch (Exception e){
-                    AppLog.e("RavenActivity",e.getLocalizedMessage());
-                }
-             //   bluetoothRelaPer();
+//                try {
+//                    boolean isEnabled = RavenActivity.isUSBDetected();
+//                    String tt = "";
+//                }catch (Exception e){
+//                    AppLog.e("RavenActivity",e.getLocalizedMessage());
+//                }
+             bluetoothRelaPer();
             }
         });
     }
@@ -190,6 +190,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         intent.putExtra(Constants.INTENT_IP, "196.6.103.18");
         intent.putExtra(Constants.INTENT_MID, "2030LA0C0199436");
         intent.putExtra(Constants.INTENT_SN, "98211206905806");
+        //intent.putExtra(Constants.KEY_ID, "3105");
         intent.putExtra(Constants.INTENT_BUSINESS_NAME_KEY, "RAVENPAY LIMITED       LA           LANG");
         intent.putExtra(Constants.INTENT_CLEAR_SESSION_KEY, "97BCC4618F323BF119103E9E161C589E");
         startActivityForResult(intent, 100);

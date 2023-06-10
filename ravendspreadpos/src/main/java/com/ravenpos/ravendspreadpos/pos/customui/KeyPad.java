@@ -10,6 +10,10 @@ import android.widget.TextView;
 
 import com.ravenpos.ravendspreadpos.R;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+
 
 public class KeyPad extends FrameLayout implements View.OnClickListener {
     private TextView displayView;
@@ -46,6 +50,50 @@ public class KeyPad extends FrameLayout implements View.OnClickListener {
         findViewById(R.id.btn_9).setOnClickListener(this);
         findViewById(R.id.btn_Del).setOnClickListener(this);
        // findViewById(R.id.btn_dot).setOnClickListener(this);
+
+        ArrayList<Integer> listRand = new ArrayList<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8,9));
+        Collections.shuffle(listRand);
+        // findViewById(R.id.btn_r).setOnClickListener(this);
+
+        TextView textView =  (TextView)((FrameLayout)findViewById(R.id.btn_0)).getChildAt(0);
+        String realResult = listRand.get(0).toString();
+        textView.setText(realResult);
+
+        TextView textView1 =  (TextView)((FrameLayout)findViewById(R.id.btn_1)).getChildAt(0);
+        String realResult1 = listRand.get(1).toString();
+        textView1.setText(realResult1);
+
+        TextView textView2 =  (TextView)((FrameLayout)findViewById(R.id.btn_2)).getChildAt(0);
+        String realResult2 = listRand.get(2).toString();
+        textView2.setText(realResult2);
+
+        TextView textView3 =  (TextView)((FrameLayout)findViewById(R.id.btn_3)).getChildAt(0);
+        String realResult3 = listRand.get(3).toString();
+        textView3.setText(realResult3);
+
+        TextView textView4 =  (TextView)((FrameLayout)findViewById(R.id.btn_4)).getChildAt(0);
+        String realResult4 = listRand.get(4).toString();
+        textView4.setText(realResult4);
+
+        TextView textView5 =  (TextView)((FrameLayout)findViewById(R.id.btn_5)).getChildAt(0);
+        String realResult5 = listRand.get(5).toString();
+        textView5.setText(realResult5);
+
+        TextView textView6 =  (TextView)((FrameLayout)findViewById(R.id.btn_6)).getChildAt(0);
+        String realResult6 = listRand.get(6).toString();
+        textView6.setText(realResult6);
+
+        TextView textView7 =  (TextView)((FrameLayout)findViewById(R.id.btn_7)).getChildAt(0);
+        String realResult7 = listRand.get(7).toString();
+        textView7.setText(realResult7);
+
+        TextView textView8 =  (TextView)((FrameLayout)findViewById(R.id.btn_8)).getChildAt(0);
+        String realResult8 = listRand.get(8).toString();
+        textView8.setText(realResult8);
+
+        TextView textView9 =  (TextView)((FrameLayout)findViewById(R.id.btn_9)).getChildAt(0);
+        String realResult9 = listRand.get(9).toString();
+        textView9.setText(realResult9);
     }
 
     public void registerDisplayDelegate(TextView displayTextView){

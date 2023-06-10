@@ -40,6 +40,7 @@ public class Constants {
     public static final String PRINTER_DATA_TERMINAL_ID_KEY = "terminal_key";
     public static final String CUSTOM_TRANSACTION_TYPE = "custom_transaction_type";
     public static final String TERMINAL_ID = "termial_id";
+    public static final String KEY_ID = "key_id_main";
     public static final String TRANSACTION_RESPONSE = "transaction_response";
     public static final String TRANSACTION_TYPE = "transaction_type";
     public static final String KEY_CUSTOMER_DETAILS = "customer_details";

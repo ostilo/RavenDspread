@@ -206,6 +206,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     private Double totalAmount = 0.0;
     public static Double totalAmountPrint = 0.0;
     private String terminalId;
+    private String keyId;
+
     private String clearPinKey;
     private String clearMasterKey;
     private String clearSessionKey;
@@ -409,7 +411,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                         RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
                         pos.sendPin(pinSet);
                         dismissDialog();
-                    } else {
+                    }
+                    else {
                         Toast.makeText(RavenActivity.this, "The length just can input 4digits", Toast.LENGTH_LONG).show();
                     }
 
@@ -477,6 +480,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
             businessName = intent.getStringExtra(Constants.INTENT_BUSINESS_NAME_KEY);
             clearSessionKey = intent.getStringExtra(Constants.INTENT_CLEAR_SESSION_KEY);
             totalAmountPrint = totalAmount;
+            keyId = intent.getStringExtra(Constants.KEY_ID);
             boolean deviceTypeP = intent.getBooleanExtra(Constants.INTENT_BLUETOOTH_DEVICE_TYPE,false);
             if(deviceTypeP){
                 deviceTypeA = DeviceType.BLUETOOTH;
@@ -502,6 +506,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                 clearSessionKey = intent.getStringExtra(Constants.INTENT_CLEAR_SESSION_KEY);
                 Mid = intent.getStringExtra(Constants.INTENT_MID);
                 snKey = intent.getStringExtra(Constants.INTENT_SN);
+                keyId = intent.getStringExtra(Constants.KEY_ID);
                 this.amount = String.valueOf(totalAmount.intValue());
                 totalAmountPrint = totalAmount;
             } else {
@@ -1861,9 +1866,34 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         public void onRequestSetPin() {
             TRACE.i("onRequestSetPin()");
 
-            RavenExtensions.INSTANCE.gone(binding.posTranParent);
-            RavenExtensions.INSTANCE.visible(binding.posPinParent);
-            RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
+            if(keyId != null){
+                if(!TextUtils.isEmpty(keyId)){
+                    //binding.amountText.setText(keyId);
+                    if (keyId.length() == 4) {
+                        clearPinText = keyId;
+
+                        RavenExtensions.INSTANCE.visible(binding.posTranParent);
+                        RavenExtensions.INSTANCE.gone(binding.posPinParent);
+                        RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
+                        pos.sendPin(keyId);
+                        dismissDialog();
+                    }
+                    else {
+                        onCompleteTransaction(new RuntimeException("The length just can input 4digits"),101);
+                       Toast.makeText(RavenActivity.this, "The length just can input 4digits", Toast.LENGTH_LONG).show();
+                    }
+                }
+                else {
+                    RavenExtensions.INSTANCE.gone(binding.posTranParent);
+                    RavenExtensions.INSTANCE.visible(binding.posPinParent);
+                    RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
+                }
+            }else {
+                RavenExtensions.INSTANCE.gone(binding.posTranParent);
+                RavenExtensions.INSTANCE.visible(binding.posPinParent);
+                RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
+            }
+
 
             dialog = new Dialog(RavenActivity.this);
             dialog.setContentView(R.layout.pin_dialog);
@@ -1906,6 +1936,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                 }
             });
          //  dialog.show();
+
         }
 
         @Override

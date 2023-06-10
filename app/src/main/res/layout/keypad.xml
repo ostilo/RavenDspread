@@ -13,38 +13,35 @@
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_1"
                 android:text="1"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style" />
-
         </FrameLayout>
-
-
         <FrameLayout
             android:id="@+id/btn_2"
             style="@style/num_pad_button_style">
-
             <TextView
+                android:id="@+id/txt_2"
                 android:text="2"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
-
         <FrameLayout
             android:id="@+id/btn_3"
             android:textColor="@color/primary_color"
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_3"
                 android:text="3"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
     </LinearLayout>
-
     <LinearLayout style="@style/num_pad_number_strip_style">
 
         <FrameLayout
@@ -53,6 +50,7 @@
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_4"
                 android:text="4"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
@@ -67,6 +65,7 @@
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_5"
                 android:text="5"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
@@ -78,6 +77,7 @@
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_6"
                 android:text="6"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
@@ -85,7 +85,6 @@
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
     </LinearLayout>
-
     <LinearLayout style="@style/num_pad_number_strip_style">
 
         <FrameLayout
@@ -93,6 +92,7 @@
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_7"
                 android:text="7"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
@@ -108,6 +108,7 @@
 
             <TextView
                 android:text="8"
+                android:id="@+id/txt_8"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
 
@@ -119,6 +120,7 @@
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_9"
                 android:text="9"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"
@@ -126,10 +128,7 @@
                 style="@style/num_pad_text_style"/>
         </FrameLayout>
     </LinearLayout>
-
-
     <LinearLayout style="@style/num_pad_number_strip_style">
-
         <FrameLayout
             android:id="@+id/btn_dot"
             style="@style/num_pad_button_style">
@@ -148,12 +147,12 @@
             style="@style/num_pad_button_style">
 
             <TextView
+                android:id="@+id/txt_0"
                 android:text="0"
                 android:textColor="@color/primary_color"
                 android:textStyle="bold"
                 style="@style/num_pad_text_style" />
         </FrameLayout>
-
         <FrameLayout
             android:id="@+id/btn_Del"
             style="@style/num_pad_button_style">
@@ -166,6 +165,4 @@
                 app:tint="@color/primary_color" />
         </FrameLayout>
     </LinearLayout>
-
-
 </LinearLayout>
