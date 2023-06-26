@@ -194,5 +194,6 @@
     <string name="proceed">Proceed</string>
     <string name="card_pin">Card PIN</string>
     <string name="close">Close</string>
+    <string name="kindly_select_a_bluetooth_model">Kindly select a bluetooth model!!</string>
 
 </resources>

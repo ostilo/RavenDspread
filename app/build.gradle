@@ -42,8 +42,10 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-   // implementation 'com.github.ostilo:RavenDspread:2.0.0'
+  // implementation 'com.github.ostilo:RavenDspread:2.0.2'
     implementation project(':ravendspreadpos')
    //implementation "androidx.core:core-ktx:+"
+    def lottieVersion = "3.6.0" //Version of lottie we are going to use
+    implementation "com.airbnb.android:lottie:$lottieVersion"
 
 }

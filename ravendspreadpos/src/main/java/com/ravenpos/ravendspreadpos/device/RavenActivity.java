@@ -60,14 +60,18 @@ import com.ravenpos.ravendspreadpos.BaseActivity;
 import com.ravenpos.ravendspreadpos.BaseApplication;
 import com.ravenpos.ravendspreadpos.R;
 import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
+import com.ravenpos.ravendspreadpos.model.BaseData;
 import com.ravenpos.ravendspreadpos.model.BluetoothModel;
+import com.ravenpos.ravendspreadpos.model.BluetoothResponse;
 import com.ravenpos.ravendspreadpos.network.Baas;
 
+import com.ravenpos.ravendspreadpos.network.RetrofitClient;
 import com.ravenpos.ravendspreadpos.pos.BluetoothDeviceAdapter;
 import com.ravenpos.ravendspreadpos.pos.IBluetooth;
 import com.ravenpos.ravendspreadpos.pos.KSNUtilities;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
 import com.ravenpos.ravendspreadpos.utils.AppLog;
+import com.ravenpos.ravendspreadpos.utils.BluetoothSearch;
 import com.ravenpos.ravendspreadpos.utils.Constants;
 import com.ravenpos.ravendspreadpos.utils.DeviceType;
 import com.ravenpos.ravendspreadpos.utils.MessagePacker;
@@ -105,6 +109,10 @@ import javax.crypto.spec.SecretKeySpec;
 
 import Decoder.BASE64Decoder;
 import Decoder.BASE64Encoder;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 
 
 public class RavenActivity extends BaseActivity implements TransactionListener, IBluetooth, TextWatcher {
@@ -283,8 +291,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
 
     @SuppressLint("MissingPermission")
     private void selectBluetoothDevice(ArrayList<BluetoothModel> bluetoothModelArrayList) {
-        ArrayList<BluetoothModel> deviceNames = new ArrayList<>(RavenExtensions.INSTANCE.sortNonPos(bluetoothModelArrayList));
-        adapter.swapData(deviceNames);
+        //new ArrayList<>(RavenExtensions.INSTANCE.sortNonPos(bluetoothModelArrayList));
+        adapter.swapData(bluetoothModelArrayList);
        // stateDialog.show();
 
 
@@ -295,12 +303,12 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
      //   pinDialog.show();
 
 
-        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, deviceNames){
+        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, bluetoothModelArrayList){
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
                 TextView view = (TextView) super.getView(position, convertView, parent);
-                view.setText(deviceNames.get(position).title);
+                view.setText(bluetoothModelArrayList.get(position).title);
                 return view;
             }
         };
@@ -371,21 +379,22 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
 //
 //                }
 //            });
-
-
            /// recyclerView = stateDialog.findViewById(R.id.guarantor_recyclerView);
            // btnContinue = stateDialog.findViewById(R.id.btnContinue);
           binding.btnContinueBlue.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    if(model == null){
+                       Toast.makeText(BaseApplication.getInstance(), R.string.kindly_select_a_bluetooth_model,Toast.LENGTH_SHORT).show();
+                    }else {
+                        String btDeviceT = model.address;
+                        onBTPosSelected(btDeviceT);
+                        RavenExtensions.INSTANCE.visible(binding.spinKit);
+                        RavenExtensions.INSTANCE.visible(binding.posTranParent);
+                        RavenExtensions.INSTANCE.gone(binding.posPinParent);
+                        RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
 
-                    String btDeviceT = model.address;
-                    onBTPosSelected(btDeviceT);
-
-                    RavenExtensions.INSTANCE.visible(binding.posTranParent);
-                    RavenExtensions.INSTANCE.gone(binding.posPinParent);
-                    RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
-
+                    }
                 }
             });
 
@@ -517,7 +526,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         }
       //  requestBlePermissions();
         message = new MutableLiveData<>();
-        binding.spinKit.setImageResource(R.drawable.insert_card_one);
+        binding.spinKit.setImageResource(R.drawable.insert_card_two);
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
             flags = FLAG_IMMUTABLE;
         }else{
@@ -530,6 +539,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
        initIntent();
         proceedToPayment(deviceTypeA);
       // initListener();
+        RavenExtensions.INSTANCE.gone(binding.spinKit);
         message.postValue(getString(R.string.connecting_bt_pos));
         try {
           // String gg = encryptedPinData("04319DCBB86B7B6E");
@@ -542,6 +552,20 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
             @Override
             public void onClick(View v) {
                     onCompleteTransaction(new RuntimeException("Transaction Cancelled"),200);
+            }
+        });
+
+        binding.btnCloseSheet.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onCompleteTransaction(new RuntimeException("Transaction Cancelled"),200);
+            }
+        });
+
+        binding.txtCloseSheet.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onCompleteTransaction(new RuntimeException("Transaction Cancelled"),200);
             }
         });
     }
@@ -1052,6 +1076,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         public void onRequestWaitingUser() {//wait user to insert/swipe/tap card
             TRACE.d("onRequestWaitingUser()");
           //  dismissDialog();
+
             message.postValue(getString(R.string.waiting_for_card));
         }
 
@@ -2208,8 +2233,37 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                     arg0.getBondState() == BluetoothDevice.BOND_BONDED ? Integer
                             .valueOf(R.drawable.bluetooth_blue) : Integer
                             .valueOf(R.drawable.bluetooth_blue_unbond);
-                    bluetoothModelArrayList.add(new BluetoothModel(arg0.getAddress(),arg0.getName()+ "(" + arg0.getAddress() + ")",icon));
-                  selectBluetoothDevice(bluetoothModelArrayList);
+                        String tt = arg0.getName();
+                        String ttrr = arg0.getAddress();
+                    //Extract SN and get business name;
+                        String serialNo = "";
+                        if(arg0.getName().contains("MPOS")){
+                            serialNo = arg0.getName().replace("MPOS","");
+                        }
+                        //Send to the API for business Name
+                         RetrofitClient.getAPIService().performBluSearch(new BluetoothSearch(serialNo)).enqueue(new Callback<BaseData<BluetoothResponse>>() {
+                             @Override
+                             public void onResponse(Call<BaseData<BluetoothResponse>> call, Response<BaseData<BluetoothResponse>> response) {
+                                 if (response.isSuccessful()) {
+                                     BluetoothResponse response1 = null;
+                                     if (response.body() != null) {
+                                         response1 = response.body().getData();
+                                     }
+                                     if(response1 != null){
+                                         bluetoothModelArrayList.add(new BluetoothModel(arg0.getAddress(),response1.business_name,icon));
+                                         selectBluetoothDevice(bluetoothModelArrayList);
+                                     }
+                                 }else{
+                                     bluetoothModelArrayList.add(new BluetoothModel(arg0.getAddress(),arg0.getName()+ "(" + arg0.getAddress() + ")",icon));
+                                     selectBluetoothDevice(bluetoothModelArrayList);
+                                 }
+                             }
+                             @Override
+                             public void onFailure(Call<BaseData<BluetoothResponse>> call, Throwable t) {
+                                    AppLog.e("performBluSearch",t.getLocalizedMessage());
+                             }
+                         });
+
             }
             else {
                // statusEditText.setText("Don't found new device");

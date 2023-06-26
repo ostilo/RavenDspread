@@ -53,7 +53,7 @@
             android:layout_marginTop="@dimen/dp_5"
             android:layout_width="@dimen/dp_10"
             android:layout_height="@dimen/dp_10"
-            android:background="@drawable/pin_circle_checked"
+            android:background="@drawable/pin_circle"
             android:textSize="@dimen/sp_10"
             />
         <TextView

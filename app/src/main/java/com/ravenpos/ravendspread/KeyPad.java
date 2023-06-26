@@ -136,18 +136,18 @@ public class KeyPad extends FrameLayout implements View.OnClickListener {
     @Override
     public void onClick(View view) {
         int id = view.getId();
-            if(id == R.id.btn_Del)
-                processDelete();
-            else if(id == R.id.btn_dot){
-                if(displayView.getText().toString().contains("."))
-                    return;
-                else
-                    processInput(".");
-            }
-            else{
-                TextView textView =  (TextView)((FrameLayout)view).getChildAt(0);
-                processInput(textView.getText().toString());
-            }
+//            if(id == R.id.btn_Del)
+//                processDelete();
+//            else if(id == R.id.btn_dot){
+//                if(displayView.getText().toString().contains("."))
+//                    return;
+//                else
+//                    processInput(".");
+//            }
+//            else{
+//                TextView textView =  (TextView)((FrameLayout)view).getChildAt(0);
+//                processInput(textView.getText().toString());
+//            }
 
     }
 }

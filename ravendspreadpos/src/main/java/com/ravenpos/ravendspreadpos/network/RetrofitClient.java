@@ -12,15 +12,10 @@ import okhttp3.Request;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 //import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.converter.scalars.ScalarsConverterFactory;
 
-/*
-configurations {
-    implementation.exclude module: 'gson' //Remove duplicate dependencies： gson
-    implementation.exclude module: 'okhttp' //Remove duplicate dependencies： okhttp
-}
- */
-class RetrofitClient {
+public class RetrofitClient {
 
     static Retrofit getClient() {
 
@@ -31,7 +26,6 @@ class RetrofitClient {
             requestBuilder.header("Accept", "application/json");
             return chain.proceed(requestBuilder.build());
         });
-
 
         HttpsURLConnection.setDefaultSSLSocketFactory(new NoSSLv3Factory());
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
@@ -47,11 +41,18 @@ class RetrofitClient {
                 //.setLenient()
                 .create();
 
-        return new Retrofit.Builder()
+          return new Retrofit.Builder()
                 .baseUrl(AppUtils.BASE_URL)
                 .addConverterFactory(ScalarsConverterFactory.create())
-               // .addConverterFactory(GsonConverterFactory.create(gson))
+               .addConverterFactory(GsonConverterFactory.create(gson))
                 .client(client)
                 .build();
     }
+
+
+    public static Baas getAPIService() {
+        return RetrofitClient.getClient().create(Baas.class);
+    }
+
+
 }

@@ -97,6 +97,7 @@ dependencies {
   //  implementation 'com.chaos.view:pinview:1.4.2'
 
     //Networks
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 
     api 'com.squareup.retrofit2:retrofit:2.9.0'
     // api 'com.google.code.gson:gson:2.8.5'
@@ -109,6 +110,8 @@ dependencies {
     api 'com.squareup.retrofit2:converter-scalars:2.3.0'
     implementation 'com.android.support:multidex:1.0.3'
 
+    def lottieVersion = "3.6.0" //Version of lottie we are going to use
+    implementation "com.airbnb.android:lottie:$lottieVersion"
 //    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 }
 
@@ -119,7 +122,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.ostilo'
                 artifactId = 'ravendspread'
-                version = '2.0.2'
+                version = '2.0.3'
             }
         }
     }

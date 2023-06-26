@@ -11,4 +11,8 @@
     <color name="light_grey">#e3e3e3</color>
     <color name="overlayColor">#7EFFEDED</color>
     <color name="primary_color">#FF000000</color>
+    <color name="teal_2000">#ECA044</color>
+    <color name="insufficient_balance">#B42318</color>
+    <color name="wallet_deep_green">#1D7454</color>
+
 </resources>

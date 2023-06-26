@@ -26,6 +26,7 @@
          android:src="@drawable/close"
          app:tint="@color/white" />
      <TextView
+         android:id="@+id/txtCloseSheet"
          android:text="@string/close"
          android:layout_marginEnd="@dimen/dp_20"
          android:layout_marginStart="@dimen/dp_10"
@@ -53,6 +54,7 @@
            android:layout_height="250dp">
 
            <pl.droidsonroids.gif.GifImageView
+
                android:id="@+id/spinKit"
                android:layout_width="match_parent"
                android:scaleType="centerInside"
@@ -206,9 +208,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         >
-
         <LinearLayout
-
             android:layout_marginStart="@dimen/dp_20"
             android:layout_marginEnd="@dimen/dp_20"
             android:layout_marginBottom="@dimen/dp_30"
@@ -228,8 +228,20 @@
                 android:layout_gravity="center_vertical"
                 android:layout_height="wrap_content"
                 />
+            <com.airbnb.lottie.LottieAnimationView
+                android:id="@+id/mainSpace"
+                android:layout_marginTop="@dimen/dp_30"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:scaleType="centerCrop"
+                app:lottie_rawRes="@raw/flow_bluetooth"
+                app:lottie_autoPlay="true"
+                app:lottie_loop="true"
+                android:layout_gravity="center_horizontal"
+                />
 
             <ImageView
+                android:visibility="gone"
                 android:contentDescription="@string/connect_bluetooth"
                 android:layout_marginTop="@dimen/dp_50"
                 android:padding="@dimen/dp_10"
