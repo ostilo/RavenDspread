@@ -2,8 +2,6 @@ package com.ravenpos.ravendspreadpos.device;
 
 import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
-
-import static com.google.android.material.internal.ContextUtils.getActivity;
 import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.byteArrayToHexString;
 import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.hexStringToByteArray;
 import static com.ravenpos.ravendspreadpos.utils.StringUtils.getTransactionTesponse;
@@ -36,7 +34,6 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -112,7 +109,6 @@ import Decoder.BASE64Encoder;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
 
 
 public class RavenActivity extends BaseActivity implements TransactionListener, IBluetooth, TextWatcher {
@@ -151,13 +147,12 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     private RavenActivity.POS_TYPE posType = RavenActivity.POS_TYPE.BLUETOOTH;
     int flags = 0;
 
+    private  String serialNo = "";
     @Override
     public void getSelectedDevice(@NonNull BluetoothModel model) {
         this.model = model;
-        String btDeviceT =  model.address;
+        serialNo = model.address;
        // stateDialog.dismiss();
-
-
     }
 
     @Override
@@ -766,6 +761,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
             response.totalAmoount = String.valueOf(totalAmount.intValue());
             response.amount = String.valueOf(totalAmount.intValue());
             ravenEmv.dataModel = response;
+            ravenEmv.dataModel.poseidonSerialNumber = serialNo;
             String fullPay = new Gson().toJson(response);
             showResult(binding.posViewUpdate, "");
             Log.e("TRANS DONE", new Gson().toJson(response));
@@ -2236,34 +2232,33 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                         String tt = arg0.getName();
                         String ttrr = arg0.getAddress();
                     //Extract SN and get business name;
-                        String serialNo = "";
+
                         if(arg0.getName().contains("MPOS")){
                             serialNo = arg0.getName().replace("MPOS","");
+                            RetrofitClient.getAPIService().performBluSearch(new BluetoothSearch(serialNo)).enqueue(new Callback<BaseData<BluetoothResponse>>() {
+                                @Override
+                                public void onResponse(Call<BaseData<BluetoothResponse>> call, Response<BaseData<BluetoothResponse>> response) {
+                                    if (response.isSuccessful()) {
+                                        BluetoothResponse response1 = null;
+                                        if (response.body() != null) {
+                                            response1 = response.body().getData();
+                                        }
+                                        if(response1 != null){
+                                            bluetoothModelArrayList.add(new BluetoothModel(arg0.getAddress(),response1.business_name,icon,serialNo));
+                                            selectBluetoothDevice(bluetoothModelArrayList);
+                                        }
+                                    }else{
+                                        bluetoothModelArrayList.add(new BluetoothModel(arg0.getAddress(),arg0.getName()+ "(" + arg0.getAddress() + ")",icon,serialNo));
+                                        selectBluetoothDevice(bluetoothModelArrayList);
+                                    }
+                                }
+                                @Override
+                                public void onFailure(Call<BaseData<BluetoothResponse>> call, Throwable t) {
+                                    AppLog.e("performBluSearch",t.getLocalizedMessage());
+                                }
+                            });
                         }
                         //Send to the API for business Name
-                         RetrofitClient.getAPIService().performBluSearch(new BluetoothSearch(serialNo)).enqueue(new Callback<BaseData<BluetoothResponse>>() {
-                             @Override
-                             public void onResponse(Call<BaseData<BluetoothResponse>> call, Response<BaseData<BluetoothResponse>> response) {
-                                 if (response.isSuccessful()) {
-                                     BluetoothResponse response1 = null;
-                                     if (response.body() != null) {
-                                         response1 = response.body().getData();
-                                     }
-                                     if(response1 != null){
-                                         bluetoothModelArrayList.add(new BluetoothModel(arg0.getAddress(),response1.business_name,icon));
-                                         selectBluetoothDevice(bluetoothModelArrayList);
-                                     }
-                                 }else{
-                                     bluetoothModelArrayList.add(new BluetoothModel(arg0.getAddress(),arg0.getName()+ "(" + arg0.getAddress() + ")",icon));
-                                     selectBluetoothDevice(bluetoothModelArrayList);
-                                 }
-                             }
-                             @Override
-                             public void onFailure(Call<BaseData<BluetoothResponse>> call, Throwable t) {
-                                    AppLog.e("performBluSearch",t.getLocalizedMessage());
-                             }
-                         });
-
             }
             else {
                // statusEditText.setText("Don't found new device");

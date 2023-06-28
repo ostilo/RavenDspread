@@ -5,6 +5,8 @@ import java.io.Serializable;
  * Created by AYODEJI on 05/15/2023.
  */
 public class TransactionResponse implements Serializable {
+
+    public  String poseidonSerialNumber;
     public String TransactionType;
     public String AID ;
     public String ExpireDate ;

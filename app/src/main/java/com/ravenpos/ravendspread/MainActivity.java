@@ -3,8 +3,12 @@ package com.ravenpos.ravendspread;
 import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Build;
@@ -30,11 +34,37 @@ import com.ravenpos.ravendspreadpos.utils.MyHandler;
 import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
 
 public class MainActivity extends AppCompatActivity implements TransactionListener {
-    private final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
     private MyHandler handler;
     private MutableLiveData<String> message;
+
+    BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+
+    private void deviceDiscovery() {
+        if (adapter.startDiscovery()) {
+            IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+
+            this.registerReceiver(br, filter);
+            Toast.makeText(this, "Discovering other bluetooth devices", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Discovery failed to start", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void makeDiscoverable() {
+        Intent i=new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION,DISCOVERABLE_DURATION);
+        startActivityForResult(i,DISCOVERABLE_REQUEST);
+    }
+
+    private static final int DISCOVERABLE_REQUEST=2;
+    private static final int DISCOVERABLE_DURATION=10;
 
     private static final String[] BLE_PERMISSIONS = new String[]{
             android.Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -46,6 +76,24 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             android.Manifest.permission.BLUETOOTH_CONNECT,
             android.Manifest.permission.ACCESS_FINE_LOCATION,
     };
+
+    BroadcastReceiver br=new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action=intent.getAction();
+
+            if(BluetoothDevice.ACTION_FOUND.equals(action))
+            {
+                BluetoothDevice bd=  intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                String newLde = bd.getName()+"  "+bd.getAddress();
+                String tt = newLde;
+
+
+            }
+        }
+    };
+
+
 
     public static void requestBlePermissions(Activity activity, int requestCode) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -104,7 +152,6 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     private static final int LOCATION_CODE = 101;
     private LocationManager lm;//【Location management】
     public void bluetoothRelaPer() {
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter != null && !adapter.isEnabled()) {
             //if bluetooth is disabled, add one fix
             Intent enabler = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -140,6 +187,15 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
                         ActivityCompat.requestPermissions(MainActivity.this, list, BLUETOOTH_CODE);
                     }
                 }
+
+//                 Set<BluetoothDevice> pairedBTDevices =  Objects.requireNonNull(adapter).getBondedDevices();
+//
+//                List<String> deviceNames = getDeviceNames(pairedBTDevices);
+//
+//                List<String> deviceNamesss = deviceNames;
+
+                deviceDiscovery();
+                makeDiscoverable();
                 Toast.makeText(MainActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
             }
         } else {
@@ -149,6 +205,14 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             intent.setAction(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
             startActivityForResult(intent, 1315);
         }
+    }
+
+    private List<String> getDeviceNames(Set<BluetoothDevice> pairedBTDevices) {
+        List<String> temp = new ArrayList<>();
+        for(BluetoothDevice device: pairedBTDevices){
+            temp.add(device.getName());
+        }
+        return temp;
     }
 
     //08033107755
