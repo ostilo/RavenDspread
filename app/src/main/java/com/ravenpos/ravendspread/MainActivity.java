@@ -25,22 +25,19 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.MutableLiveData;
 
-import com.ravenpos.ravendspreadpos.BaseApplication;
+import com.ravenpos.ravendspreadpos.BluetoothListener;
 import com.ravenpos.ravendspreadpos.device.RavenActivity;
 import com.ravenpos.ravendspreadpos.pos.TransactionResponse;
-import com.ravenpos.ravendspreadpos.utils.AppLog;
 import com.ravenpos.ravendspreadpos.utils.Constants;
 import com.ravenpos.ravendspreadpos.utils.MyHandler;
-import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 
-public class MainActivity extends AppCompatActivity implements TransactionListener {
+public class MainActivity extends AppCompatActivity implements TransactionListener, BluetoothListener {
     private MyHandler handler;
     private MutableLiveData<String> message;
 
@@ -71,23 +68,24 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             android.Manifest.permission.ACCESS_FINE_LOCATION,
     };
 
+
     private static final String[] ANDROID_12_BLE_PERMISSIONS = new String[]{
             android.Manifest.permission.BLUETOOTH_SCAN,
             android.Manifest.permission.BLUETOOTH_CONNECT,
             android.Manifest.permission.ACCESS_FINE_LOCATION,
     };
 
-    BroadcastReceiver br=new BroadcastReceiver() {
+     BroadcastReceiver br=new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action=intent.getAction();
-
             if(BluetoothDevice.ACTION_FOUND.equals(action))
             {
                 BluetoothDevice bd=  intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 String newLde = bd.getName()+"  "+bd.getAddress();
                 String tt = newLde;
 
+            }else{
 
             }
         }
@@ -144,7 +142,10 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
 //                }catch (Exception e){
 //                    AppLog.e("RavenActivity",e.getLocalizedMessage());
 //                }
-             bluetoothRelaPer();
+            //    bluetoothRelaPer();
+
+
+               //RavenActivity.isBluetoothDetected(MainActivity.this,MainActivity.this);
             }
         });
     }
@@ -194,8 +195,8 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
 //
 //                List<String> deviceNamesss = deviceNames;
 
-                deviceDiscovery();
-                makeDiscoverable();
+//                deviceDiscovery();
+               // makeDiscoverable();
                 Toast.makeText(MainActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
             }
         } else {
@@ -292,6 +293,16 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
                     })
                     .show();
         }
+    }
+
+    @Override
+    public void onError(boolean var1, int var2) {
+        boolean re = var1;
+    }
+
+    @Override
+    public void onSuccess(boolean var1) {
+        boolean re = var1;
     }
     //
 }

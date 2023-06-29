@@ -6,6 +6,7 @@ import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.byteArrayToHexString;
 import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.hexStringToByteArray;
 import static com.ravenpos.ravendspreadpos.utils.StringUtils.getTransactionTesponse;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -42,6 +43,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -55,6 +57,7 @@ import com.google.gson.Gson;
 import com.pnsol.sdk.miura.emv.EmvTags;
 import com.ravenpos.ravendspreadpos.BaseActivity;
 import com.ravenpos.ravendspreadpos.BaseApplication;
+import com.ravenpos.ravendspreadpos.BluetoothListener;
 import com.ravenpos.ravendspreadpos.R;
 import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
 import com.ravenpos.ravendspreadpos.model.BaseData;
@@ -98,6 +101,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -142,17 +146,18 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     private BottomSheetDialog pinDialog;
 
     private Button btnContinue;
-   // private PinView txtUserPin;
+    // private PinView txtUserPin;
 
     private RavenActivity.POS_TYPE posType = RavenActivity.POS_TYPE.BLUETOOTH;
     int flags = 0;
 
-    private  String serialNo = "";
+    private String serialNo = "";
+
     @Override
     public void getSelectedDevice(@NonNull BluetoothModel model) {
         this.model = model;
         serialNo = model.address;
-       // stateDialog.dismiss();
+        // stateDialog.dismiss();
     }
 
     @Override
@@ -164,32 +169,29 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     public void onTextChanged(CharSequence s, int start, int before, int count) {
         String pin = s.toString();
 
-        if(pin.length() == 4){
+        if (pin.length() == 4) {
             clearPinText = pin;
 
             binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinTwo.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinThree.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinFour.setBackgroundResource(R.drawable.pin_circle_checked);
-        }else if(s.length() == 3){
+        } else if (s.length() == 3) {
             binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinTwo.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinThree.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinFour.setBackgroundResource(R.drawable.pin_circle);
-        }
-        else if(s.length() == 2){
+        } else if (s.length() == 2) {
             binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinTwo.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinThree.setBackgroundResource(R.drawable.pin_circle);
             binding.pinFour.setBackgroundResource(R.drawable.pin_circle);
-        }
-        else if(s.length() == 1){
+        } else if (s.length() == 1) {
             binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinTwo.setBackgroundResource(R.drawable.pin_circle);
             binding.pinThree.setBackgroundResource(R.drawable.pin_circle);
             binding.pinFour.setBackgroundResource(R.drawable.pin_circle);
-        }
-        else if(TextUtils.isEmpty(s)){
+        } else if (TextUtils.isEmpty(s)) {
             binding.pinOne.setBackgroundResource(R.drawable.pin_circle);
             binding.pinTwo.setBackgroundResource(R.drawable.pin_circle);
             binding.pinThree.setBackgroundResource(R.drawable.pin_circle);
@@ -227,11 +229,78 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     private KSNUtilities ksnUtilities;
 
     private String clearPinText;
-    private BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+    private  BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
 
     private ArrayList<BluetoothModel> bluetoothModelArrayList = new ArrayList<>();
 
     private DeviceType deviceTypeA = DeviceType.BLUETOOTH;
+
+//    private static final int DISCOVERABLE_REQUEST = 2;
+//    private static final int DISCOVERABLE_DURATION = 10;
+
+
+   // private static BluetoothListener listener;
+
+/*
+  static   BroadcastReceiver br = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                BluetoothDevice bd = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (bd != null && bd.getName() != null) {
+                    if(bd.getName().contains("MPOS")){
+                        listener.onSuccess(true);
+                    }
+                }
+            } else {
+                listener.onError(false,1003);
+            }
+        }
+    };
+ */
+
+//    public static void isBluetoothDetected(Activity activity, BluetoothListener _listener){
+//            listener = _listener;
+//            deviceDiscovery(activity);
+//            //makeDiscoverable(activity);
+//    }
+/*
+    private static void deviceDiscovery(Activity activity) {
+        if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            String[] list =   new String[]{
+                    Manifest.permission.BLUETOOTH_SCAN
+            };
+            ActivityCompat.requestPermissions(activity, list, 123);
+            return;
+        }
+        if (btAdapter.startDiscovery()) {
+            IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+
+            activity.registerReceiver(br, filter);
+            Toast.makeText(activity, "Discovering other bluetooth devices", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(activity, "Discovery failed to start", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+ */
+    /*
+    private static void makeDiscoverable(Activity activity) {
+        Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION);
+        if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
+            String[] list =   new String[]{
+                    Manifest.permission.BLUETOOTH_ADVERTISE
+            };
+            ActivityCompat.requestPermissions(activity, list, 123);
+            return;
+        }
+        activity.startActivityForResult(i, DISCOVERABLE_REQUEST);
+    }
+     */
+
+
     private void clearDisplay() {
         message.postValue("");
     }
@@ -260,8 +329,14 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     private void proceedToPayment(DeviceType deviceType) {
         try {
             message.postValue(getString(R.string.connect));
-         //   showResult(binding.posViewUpdate, getString(R.string.connect));
             if(deviceType == DeviceType.BLUETOOTH){
+
+                RavenExtensions.INSTANCE.gone(binding.refreshLoad);
+                RavenExtensions.INSTANCE.visible(binding.normalLoad);
+
+                RavenExtensions.INSTANCE.gone(binding.posTranParent);
+                RavenExtensions.INSTANCE.gone(binding.posPinParent);
+                RavenExtensions.INSTANCE.visible(binding.posBluetoothParent);
                 detectBluetoothConnect();
             }else{
                 initListener();
@@ -270,7 +345,18 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         }catch (Exception e){}
     }
 
+    final Handler handler = new Handler();
+
     private void detectBluetoothConnect(){
+        bluetoothModelArrayList = new ArrayList<>();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                RavenExtensions.INSTANCE.gone(binding.refreshLoad);
+                RavenExtensions.INSTANCE.visible(binding.normalLoad);
+            }
+        }, 12000);
+
         open(CommunicationMode.BLUETOOTH);
         posType = POS_TYPE.BLUETOOTH;
         pos.clearBluetoothBuffer();
@@ -290,6 +376,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         adapter.swapData(bluetoothModelArrayList);
        // stateDialog.show();
 
+        RavenExtensions.INSTANCE.gone(binding.refreshLoad);
+        RavenExtensions.INSTANCE.visible(binding.normalLoad);
 
         RavenExtensions.INSTANCE.gone(binding.posTranParent);
         RavenExtensions.INSTANCE.gone(binding.posPinParent);
@@ -388,10 +476,18 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                         RavenExtensions.INSTANCE.visible(binding.posTranParent);
                         RavenExtensions.INSTANCE.gone(binding.posPinParent);
                         RavenExtensions.INSTANCE.gone(binding.posBluetoothParent);
-
                     }
                 }
             });
+
+          binding.blueRefreshAction.setOnClickListener(new View.OnClickListener() {
+              @Override
+              public void onClick(View v) {
+                  RavenExtensions.INSTANCE.visible(binding.refreshLoad);
+                  RavenExtensions.INSTANCE.gone(binding.normalLoad);
+                  detectBluetoothConnect();
+              }
+          });
 
 
             binding.amountText.addTextChangedListener(this);
@@ -531,7 +627,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
 //          //  initAID_CAPK();
 //        }
         viewObserver();
-       initIntent();
+        initIntent();
         proceedToPayment(deviceTypeA);
       // initListener();
         RavenExtensions.INSTANCE.gone(binding.spinKit);
@@ -1011,7 +1107,22 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
             close();
             pos = null;
         }
+//        try {
+//            unregisterNetworkChanges();
+//        }catch (Exception ex){
+//        AppLog.e("unregisterNetworkChanges", ex.getLocalizedMessage());
+//        }
     }
+
+  /*
+    private void unregisterNetworkChanges() {
+        try {
+            unregisterReceiver(br);
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+        }
+    }
+   */
 
     private void devicePermissionRequest(UsbManager mManager, UsbDevice usbDevice) {
         PendingIntent mPermissionIntent = PendingIntent.getBroadcast(RavenActivity.this, 0, new Intent(
