@@ -92,7 +92,6 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
     };
 
 
-
     public static void requestBlePermissions(Activity activity, int requestCode) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
             ActivityCompat.requestPermissions(activity, ANDROID_12_BLE_PERMISSIONS, requestCode);
@@ -142,7 +141,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
 //                }catch (Exception e){
 //                    AppLog.e("RavenActivity",e.getLocalizedMessage());
 //                }
-            //    bluetoothRelaPer();
+              bluetoothRelaPer();
 
 
                //RavenActivity.isBluetoothDetected(MainActivity.this,MainActivity.this);
@@ -188,15 +187,6 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
                         ActivityCompat.requestPermissions(MainActivity.this, list, BLUETOOTH_CODE);
                     }
                 }
-
-//                 Set<BluetoothDevice> pairedBTDevices =  Objects.requireNonNull(adapter).getBondedDevices();
-//
-//                List<String> deviceNames = getDeviceNames(pairedBTDevices);
-//
-//                List<String> deviceNamesss = deviceNames;
-
-//                deviceDiscovery();
-               // makeDiscoverable();
                 Toast.makeText(MainActivity.this, "Permission Granted", Toast.LENGTH_SHORT).show();
             }
         } else {
@@ -237,7 +227,6 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
             AppLog.e("byteArrayToHexString",e.getLocalizedMessage());
         }
     }
-
  */
     private void startAccountSelectionActivity(Double amount) {
         Intent intent = new Intent(this, RavenActivity.class);
@@ -247,9 +236,8 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         intent.putExtra(Constants.INTENT_BLUETOOTH_DEVICE_TYPE, true);
 
         //5849377320EA67F846DC19EA086DCE15
-        //  intent.putExtra(Constants.INTENT_CLEAR_MASTER_KEY, "1A6101B94AFDF26B8FAB292A263BF467");
-        intent.putExtra(Constants.INTENT_CLEAR_MASTER_KEY, "549DEC3898977CC243A415DCC1BF6457");
-        intent.putExtra(Constants.INTENT_CLEAR_PIN_KEY, "9DFB23DC0EE3899B26DFBA372570A151");
+        intent.putExtra(Constants.INTENT_CLEAR_MASTER_KEY, "C7CB1FBFAE34C1459DB0A1022A0BCDBA");
+        intent.putExtra(Constants.INTENT_CLEAR_PIN_KEY, "5732CE75E59E7F92864C37527FAB92F8");
 
         intent.putExtra(Constants.INTENT_Port, "5013");
         intent.putExtra(Constants.INTENT_IP, "196.6.103.18");
@@ -257,7 +245,7 @@ public class MainActivity extends AppCompatActivity implements TransactionListen
         intent.putExtra(Constants.INTENT_SN, "98211206905806");
         //intent.putExtra(Constants.KEY_ID, "3105");
         intent.putExtra(Constants.INTENT_BUSINESS_NAME_KEY, "RAVENPAY LIMITED       LA           LANG");
-        intent.putExtra(Constants.INTENT_CLEAR_SESSION_KEY, "97BCC4618F323BF119103E9E161C589E");
+        intent.putExtra(Constants.INTENT_CLEAR_SESSION_KEY, "D54A7A2FFB1CA18C34540DBA2638B9E0");
         startActivityForResult(intent, 100);
 //Todo for push
     }

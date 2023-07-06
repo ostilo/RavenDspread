@@ -6,7 +6,6 @@ import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.byteArrayToHexString;
 import static com.ravenpos.ravendspreadpos.pos.EncryptUtil.hexStringToByteArray;
 import static com.ravenpos.ravendspreadpos.utils.StringUtils.getTransactionTesponse;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -43,7 +42,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.MutableLiveData;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -57,7 +55,6 @@ import com.google.gson.Gson;
 import com.pnsol.sdk.miura.emv.EmvTags;
 import com.ravenpos.ravendspreadpos.BaseActivity;
 import com.ravenpos.ravendspreadpos.BaseApplication;
-import com.ravenpos.ravendspreadpos.BluetoothListener;
 import com.ravenpos.ravendspreadpos.R;
 import com.ravenpos.ravendspreadpos.databinding.ActivityRavenBinding;
 import com.ravenpos.ravendspreadpos.model.BaseData;
@@ -79,6 +76,7 @@ import com.ravenpos.ravendspreadpos.utils.RavenEmv;
 import com.ravenpos.ravendspreadpos.utils.RavenExtensions;
 import com.ravenpos.ravendspreadpos.utils.TransactionListener;
 import com.ravenpos.ravendspreadpos.utils.TransactionMessage;
+import com.ravenpos.ravendspreadpos.utils.TransactionType;
 import com.ravenpos.ravendspreadpos.utils.USBClass;
 import com.ravenpos.ravendspreadpos.utils.utils.FileUtils;
 import com.ravenpos.ravendspreadpos.utils.utils.ParseASN1Util;
@@ -152,11 +150,13 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     int flags = 0;
 
     private String serialNo = "";
+    private String terminalTime;
+
 
     @Override
     public void getSelectedDevice(@NonNull BluetoothModel model) {
         this.model = model;
-        serialNo = model.address;
+        serialNo = model.serialNo;
         // stateDialog.dismiss();
     }
 
@@ -171,6 +171,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
 
         if (pin.length() == 4) {
             clearPinText = pin;
+
 
             binding.pinOne.setBackgroundResource(R.drawable.pin_circle_checked);
             binding.pinTwo.setBackgroundResource(R.drawable.pin_circle_checked);
@@ -417,6 +418,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
             pos.stopScanQPos2Mode();
         }
         pos.connectBluetoothDevice(true, 25, blueTootchAdd);
+        pos.setForceCVMNotRequired(true);
     }
 
     private BottomSheetDialog stateDialog;
@@ -557,6 +559,9 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        QPOSService.TransactionType tt = QPOSService.TransactionType.PAYMENT;
+        String gg = tt.name();
+        String ggi = tt.toString();
         binding = ActivityRavenBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         BaseApplication.setContext(this.getApplicationContext());
@@ -1169,9 +1174,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         }
         return deviceList;
     }
-    private String terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
     private QPOSService.TransactionType transactionType = QPOSService.TransactionType.PAYMENT;
-
     /**
      * @author qianmengChen
      * @ClassName: MyPosListener
@@ -1620,7 +1623,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         public void onRequestSetAmount() {
             TRACE.d("input amount -- S");
             TRACE.d("onRequestSetAmount()");
-            pos.setAmount(amount, cashbackAmount, "566", QPOSService.TransactionType.PAYMENT);
+            pos.setAmount(amount.concat("00"), cashbackAmount, "566", QPOSService.TransactionType.PAYMENT);
+
         }
 
         /**
@@ -1703,7 +1707,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         @Override
         public void onRequestTime() {
             TRACE.d("onRequestTime");
-            String terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
             pos.sendTime(terminalTime);
             //message.postValue(getString(R.string.request_terminal_time) + " " + terminalTime);
         }
@@ -1795,6 +1798,11 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                 message.postValue("Card Injection Processing...");
                 pos.updateEMVConfigByXml(new String(FileUtils.readAssetsLine("emv_profile_tlv.xml",BaseApplication.getInstance())));
             }else {
+                 //terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
+                 terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
+
+                pos.setCardTradeMode(QPOSService.CardTradeMode.ONLY_INSERT_CARD);
+                //pos.setFormatId("0000");
                 pos.doTrade();//start do trade
                 //pos.doTrade(30);//start do trade
             }
@@ -1988,6 +1996,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
             message.postValue("result: " + isSuccess + "\ndata: " + result);
             if(isSuccess){
                 SharedPreferencesUtils.getInstance().setValue(getResources().getString(R.string.loadedDevice),true);
+                terminalTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
                 pos.doTrade();
             }else {
                 onProcessingError(new RuntimeException("Emv failed to  inject"),1010);
@@ -2366,6 +2375,7 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                                 @Override
                                 public void onFailure(Call<BaseData<BluetoothResponse>> call, Throwable t) {
                                     AppLog.e("performBluSearch",t.getLocalizedMessage());
+                                        //Show that there's was no conncetion
                                 }
                             });
                         }
@@ -2952,7 +2962,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
                 if(pos.getICCTag(0,1,"4F") != null){
                     mResponse.CardOrg = pos.getICCTag(0,1,"4F").get("tlv");
                 }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -2982,6 +2991,11 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         mResponse.Track2 =   extractTag(EmvTags.TRACK_2_EQUIVALENT_DATA);
         mResponse.CardNo =  extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER);
         mResponse.CardSequenceNumber = padLeft(extractTag(EmvTags.APPLICATION_PRIMARY_ACCOUNT_NUMBER_SEQUENCE_NUMBER),3, '0');
+
+
+
+      String cardSeques=  extractTag(EmvTags.CRYPTOGRAM_INFORMATION_DATA);
+
 
         StringBuilder builder = new StringBuilder();
         for(String s : tags){
@@ -3045,7 +3059,11 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         try {
             for(String s : tags){
                 String tag = pos.getICCTag(0,1,s).get("tlv");
-                builder.append(tag);            }
+                if(s.equals("9C")){
+                    tag = "9C0100";
+                }
+                builder.append(tag);
+            }
             return builder.toString();
         }catch (Exception e){
             return  null;
