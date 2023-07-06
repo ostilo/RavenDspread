@@ -188,6 +188,7 @@
             android:background="@drawable/button_background"
             android:text="@string/proceed" />
         <TextView
+            android:visibility="invisible"
             android:text="@string/powered_by_raven"
             android:gravity="center"
             android:layout_width="wrap_content"
@@ -356,6 +357,7 @@
                 android:text="@string/connect_to_device" />
 
             <TextView
+                android:visibility="invisible"
                 android:text="@string/powered_by_raven"
                 android:gravity="center"
                 android:layout_width="wrap_content"

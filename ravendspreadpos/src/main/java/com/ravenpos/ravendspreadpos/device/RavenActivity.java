@@ -1623,8 +1623,8 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         public void onRequestSetAmount() {
             TRACE.d("input amount -- S");
             TRACE.d("onRequestSetAmount()");
-            pos.setAmount(amount.concat("00"), cashbackAmount, "566", QPOSService.TransactionType.PAYMENT);
-
+            pos.setAmount(amount, cashbackAmount, "566", QPOSService.TransactionType.PAYMENT);
+///            pos.setAmount(amount.concat("00"), cashbackAmount, "566", QPOSService.TransactionType.PAYMENT)
         }
 
         /**
@@ -3000,7 +3000,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         StringBuilder builder = new StringBuilder();
         for(String s : tags){
             List<com.ravenpos.ravendspreadpos.utils.utils.TLV> parse = TLVParser.parse(TLV);
-
             //String tagR = pos.getICCTag(0,1,s).get("tlv");
             String tag =  Objects.requireNonNull(TLVParser.searchTLV(parse, s)).value;
             if(tag != null){
@@ -3051,7 +3050,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
 //        decodeData.put(EmvTags.TRANSACTION_DATE.toString(), pos.getICCTag(0, 1, EmvTags.TRANSACTION_DATE.toString()).get("tlv"));
 
         //TERMINAL_VERIFICATION_RESULTS
-
         return decodeData;
     }
     private String getICCTags(){
@@ -3059,9 +3057,6 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
         try {
             for(String s : tags){
                 String tag = pos.getICCTag(0,1,s).get("tlv");
-                if(s.equals("9C")){
-                    tag = "9C0100";
-                }
                 builder.append(tag);
             }
             return builder.toString();
@@ -3077,6 +3072,5 @@ public class RavenActivity extends BaseActivity implements TransactionListener, 
             newData = padChar + newData;
         return newData;
     }
-
 
 }
